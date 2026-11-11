@@ -43,7 +43,12 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       Real run: app + 10 min of TTS; Live Captions scrolled 11 times after ~4,300-4,800 chars (~800 words),
       dropping 60-80 words at a time; the session file had all 1,547 words (97.5% of the script, rest are
       recognition errors), no duplicates; app used 3 s CPU and 72 MB.
-- [ ] **Phase 4 — Hotkeys**: Ctrl+Shift alone = send, F9 = skip, 300 ms double-press guard, minSendChars.
+- [x] **Phase 4 — Hotkeys**: KeyboardHook (WH_KEYBOARD_LL on its own thread, never swallows keys) +
+      HotkeyStateMachine (unit-testable, from LiveCaptionsGemini) + SendController (300 ms guard, minSendChars,
+      prefix, text kept when not connected / failed / no response). Real test (tools/keytest/hotkey-test.ps1, keys
+      sent only to a temporary test window): all 12 scenarios as expected (Ctrl+Shift either order, right Ctrl,
+      auto-repeat, double press ignored, Ctrl+Shift+T / +F24 / Ctrl+F9 / Ctrl or Shift alone do nothing, F9 skips,
+      nothing new after skip); no stuck keys, foreground restored. F9 still reaches the active app (by design).
 - [ ] **Phase 5 — WebSocket server**: loopback Kestrel, token + Origin check, provider-neutral protocol
       (hello with protocol version, ping/pong, send, ack with provider), 3 s ack timeout restores sentIndex,
       console test client.

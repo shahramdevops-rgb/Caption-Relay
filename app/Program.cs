@@ -3,6 +3,8 @@ using System.Windows.Forms;
 using CaptionRelay.Captions;
 using CaptionRelay.Config;
 using CaptionRelay.Infrastructure;
+using CaptionRelay.Input;
+using CaptionRelay.Sending;
 
 namespace CaptionRelay
 {
@@ -77,11 +79,51 @@ namespace CaptionRelay
             capture.Start();
             Log.Info($"Capture started (poll {config.PollMs} ms, session file {writer.FilePath}).");
 
-            // Tray icon, hotkeys and the WebSocket server are added in later phases (see ROADMAP.md).
+            // Hidden control: its handle lets the hook thread BeginInvoke onto this (UI) thread.
+            using var invoker = new Control();
+            _ = invoker.Handle;
+
+            Hotkey sendKey = ParseHotkey(config.SendKey, AppConfig.DefaultSendKey, "sendKey");
+            Hotkey skipKey = ParseHotkey(config.SkipKey, AppConfig.DefaultSkipKey, "skipKey");
+            if (sendKey.Kind != HotkeyKind.None && sendKey.Equals(skipKey))
+            {
+                Log.Warn($"sendKey and skipKey are both {sendKey}; skip is disabled.");
+                skipKey = Hotkey.None;
+            }
+
+            var controller = new SendController(capture, new NotConnectedSender(), config.MinSendChars, config.Prefix);
+            controller.Feedback += (kind, message) => Log.Info($"Feedback ({kind}): {message}");
+
+            using var hook = new KeyboardHook(sendKey, skipKey, action => invoker.BeginInvoke(action));
+            hook.SendPressed += controller.OnSendPressed;
+            hook.SkipPressed += controller.OnSkipPressed;
+            try
+            {
+                hook.Start();
+                Log.Info($"Hotkeys: send = {sendKey}, skip = {skipKey}.");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                Log.Error("Keyboard hook failed; hotkeys are disabled", ex);
+            }
+
+            // Tray icon and the WebSocket server are added in later phases (see ROADMAP.md).
             Application.Run(new ApplicationContext());
 
             Log.Info("Exiting normally.");
             return 0;
+        }
+
+        private static Hotkey ParseHotkey(string text, string fallback, string name)
+        {
+            if (Hotkey.TryParse(text, out Hotkey hotkey))
+            {
+                return hotkey;
+            }
+
+            Log.Warn($"Config: {name} \"{text}\" is not a valid key; using {fallback}.");
+            Hotkey.TryParse(fallback, out hotkey);
+            return hotkey;
         }
     }
 }
