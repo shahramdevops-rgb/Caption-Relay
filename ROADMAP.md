@@ -5,7 +5,9 @@ and a local commit.
 
 - [x] **Phase 0 — Skeleton**: sln, app/ (net8.0-windows, WinForms + UseWPF, Microsoft.AspNetCore.App,
       ImplicitUsings off), tests/ (xUnit), extension/ stub, .gitignore, README/ROADMAP, git init.
-- [ ] **Phase 1 — Config + logs**: config.json with defaults and a random token on first run; rolling file logs in app/logs.
+- [x] **Phase 1 — Config + logs**: config.json next to the exe with defaults and a random 43-char token on first run
+      (missing fields filled, invalid values reset, invalid JSON never overwritten); rolling daily logs in logs/ next to
+      the exe (5 MB per file, 7 days kept, no transcript text); single-instance named mutex.
 - [ ] **Phase 2 — TranscriptMerger + xUnit tests** (most important): growth, scroll-off, rewritten last words,
       cleared/restarted captions, repeated polls, case/punctuation-insensitive matching.
 - [ ] **Phase 3 — Continuous capture**: ~120 ms poller, sentIndex/pending, sessions/*.txt with [SENT]/[SKIPPED] markers.
