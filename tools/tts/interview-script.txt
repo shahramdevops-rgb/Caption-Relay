@@ -1,0 +1,36 @@
+Okay, recording starts now.
+Thanks for joining us today. Before we begin, let me tell you a little bit about the team and the product we are building.
+We are a small group of eight engineers, and we build an online booking system for gyms and fitness studios.
+Most of our back end is written in C sharp on dot net eight, and the front end uses React with TypeScript.
+We deploy everything to Azure, and we use SQL Server for the main database and Redis for caching.
+So, my first question is a simple one. Can you tell me about yourself and about your last project?
+Take your time, there is no rush at all.
+I see. That sounds interesting. I I I think I would like to hear a bit more about the architecture of that project.
+How did you split the system into services, and how did those services talk to each other?
+Did you use a message queue, or did the services call each other directly over HTTP?
+And how did you handle failures, for example when one service was slow or completely down?
+Good. Now let me ask you something more technical. What is dependency injection in C sharp, and why is it useful?
+Can you explain the difference between a transient, a scoped, and a singleton lifetime?
+When would you choose each one, and what can go wrong if you choose the wrong lifetime?
+For example, what happens if a singleton service depends on a scoped database context?
+Let me repeat that question, because it is important. What happens if a singleton service depends on a scoped database context?
+Okay. Let us move on to databases. Imagine a table with forty two million rows of bookings.
+A query that searches bookings by customer and by date has become very slow during the last month.
+How would you find out why it is slow, and what would you do to make it fast again?
+Would you add an index, and if so, which columns would you put in it and in which order?
+What are the costs of adding too many indexes to a table that receives a lot of writes?
+Now a question about async code. What is the difference between a task and a thread?
+Why is it a bad idea to call result or wait on a task inside an ASP dot net request?
+Have you ever seen a deadlock caused by async code, and how did you fix it?
+Next, I would like to talk about testing. How do you decide what to cover with unit tests and what to cover with integration tests?
+Do you write the tests before the code, after the code, or does it depend on the situation?
+Tell me about a bug that reached production even though you had tests. What did you learn from it?
+Let us talk about teamwork for a minute. Tell me about a time you disagreed with a colleague about a technical decision.
+How did you handle the disagreement, and what was the final result?
+Looking back, would you do anything differently today?
+We are almost done. Here is a small design question. How would you design a URL shortener that handles millions of requests per day?
+Think about how you would generate the short codes, how you would store them, and how you would avoid collisions.
+Also tell me which metrics you would monitor in production, and why those metrics matter.
+Finally, do you have any questions for us about the team, the product, or the way we work?
+Thank you very much for your time today. We will get back to you by the end of next week.
+That is the end of the recording.

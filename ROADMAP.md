@@ -29,8 +29,12 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
 - [x] **Phase 1 — Config + logs**: config.json next to the exe with defaults and a random 43-char token on first run
       (missing fields filled, invalid values reset, invalid JSON never overwritten); rolling daily logs in logs/ next to
       the exe (5 MB per file, 7 days kept, no transcript text); single-instance named mutex.
-- [ ] **Phase 2 — TranscriptMerger + xUnit tests** (most important): growth, scroll-off, rewritten last words,
-      cleared/restarted captions, repeated polls, case/punctuation-insensitive matching.
+- [x] **Phase 2 — TranscriptMerger + xUnit tests** (most important): word-level, case/punctuation-insensitive
+      alignment that tolerates rewrites; MapIndex keeps sentIndex correct across rewrites. Tests: growth, scroll-off,
+      rewritten last words, I I I I → II, C sharp → C#, cleared/restarted, repeated polls, repeated phrases, plus replay
+      of a real 4-minute Live Captions recording (tools/CaptionRecorder + tools/tts/speak.ps1).
+      Learned: a freshly started Live Captions kept all 4 minutes (616 words) on screen without scrolling, and
+      rewrote words long after they appeared ("dot net eight" → ".net 8", "forty two" → "42", "I I I" → "III").
 - [ ] **Phase 3 — Continuous capture**: ~120 ms poller, sentIndex/pending, sessions/*.txt with [SENT]/[SKIPPED] markers.
 - [ ] **Phase 4 — Hotkeys**: Ctrl+Shift alone = send, F9 = skip, 300 ms double-press guard, minSendChars.
 - [ ] **Phase 5 — WebSocket server**: loopback Kestrel, token + Origin check, provider-neutral protocol
