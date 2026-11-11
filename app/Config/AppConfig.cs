@@ -45,5 +45,11 @@ namespace CaptionRelay.Config
 
         /// <summary>Move the Live Captions window off-screen while the app runs (restored on exit).</summary>
         public bool HideLiveCaptions { get; set; }
+
+        /// <summary>
+        /// Extension ids allowed to connect (from chrome://extensions). Empty = any Chrome/Edge extension that knows
+        /// the token. Web pages (http/https origins) are always rejected.
+        /// </summary>
+        public string[] AllowedExtensionIds { get; set; } = new string[0];
     }
 }

@@ -49,9 +49,13 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       sent only to a temporary test window): all 12 scenarios as expected (Ctrl+Shift either order, right Ctrl,
       auto-repeat, double press ignored, Ctrl+Shift+T / +F24 / Ctrl+F9 / Ctrl or Shift alone do nothing, F9 skips,
       nothing new after skip); no stuck keys, foreground restored. F9 still reaches the active app (by design).
-- [ ] **Phase 5 — WebSocket server**: loopback Kestrel, token + Origin check, provider-neutral protocol
-      (hello with protocol version, ping/pong, send, ack with provider), 3 s ack timeout restores sentIndex,
-      console test client.
+- [x] **Phase 5 — WebSocket server**: RelayServer (loopback Kestrel, chrome-extension:// origins only +
+      optional allowedExtensionIds, constant-time token check in hello, welcome/ping/pong/send/ack, latest
+      connection receives, 3 s ack timeout → text kept, 65 s idle close), protocol in docs/protocol.md,
+      tools/RelayTestClient (fake extension). 26 integration tests with real sockets. Real run: TTS + Ctrl+Shift
+      with the fake extension answering sent / no ack / queued / error / sent: every result and text-kept case as
+      expected, session file has [SENT] only for delivered sends; wrong token and web origin rejected;
+      hotkey → ack round trip 54 ms (50 ms of it the client's simulated delay).
 - [ ] **Phase 6 — Tray + indicator pill**: no-focus draggable pill, saved position, flash messages, expand panel, optional sound.
 - [ ] **Phase 7 — Extension connection + provider registry**: MV3 service worker WebSocket, backoff 1/2/5 s,
       30 s alarm, ON/OFF badge, provider registry, options page (port, token, active provider).

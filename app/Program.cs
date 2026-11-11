@@ -4,6 +4,7 @@ using CaptionRelay.Captions;
 using CaptionRelay.Config;
 using CaptionRelay.Infrastructure;
 using CaptionRelay.Input;
+using CaptionRelay.Relay;
 using CaptionRelay.Sending;
 
 namespace CaptionRelay
@@ -91,7 +92,16 @@ namespace CaptionRelay
                 skipKey = Hotkey.None;
             }
 
-            var controller = new SendController(capture, new NotConnectedSender(), config.MinSendChars, config.Prefix);
+            using var relay = new RelayServer(new RelayOptions
+            {
+                Port = config.Port,
+                Token = config.Token,
+                AllowedExtensionIds = config.AllowedExtensionIds,
+            });
+            relay.ConnectionChanged += connected => Log.Info(connected ? $"Extension connected: {relay.ActiveClient}." : "No extension connected.");
+            relay.StartAsync().GetAwaiter().GetResult();
+
+            var controller = new SendController(capture, relay, config.MinSendChars, config.Prefix);
             controller.Feedback += (kind, message) => Log.Info($"Feedback ({kind}): {message}");
 
             using var hook = new KeyboardHook(sendKey, skipKey, action => invoker.BeginInvoke(action));
@@ -107,7 +117,7 @@ namespace CaptionRelay
                 Log.Error("Keyboard hook failed; hotkeys are disabled", ex);
             }
 
-            // Tray icon and the WebSocket server are added in later phases (see ROADMAP.md).
+            // Tray icon and indicator come in Phase 6 (see ROADMAP.md).
             Application.Run(new ApplicationContext());
 
             Log.Info("Exiting normally.");

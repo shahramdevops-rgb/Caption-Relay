@@ -214,6 +214,12 @@ namespace CaptionRelay.Config
                 changed = true;
             }
 
+            if (c.AllowedExtensionIds == null)
+            {
+                c.AllowedExtensionIds = new string[0];
+                changed = true;
+            }
+
             return changed;
         }
     }
