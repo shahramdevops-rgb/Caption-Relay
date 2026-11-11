@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF is enabled only for System.Windows.Automation (UI Automation client). -->
+    <UseWPF>true</UseWPF>
+    <!-- Off to avoid WinForms/WPF type-name clashes. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CaptionRelay</RootNamespace>
+    <AssemblyName>CaptionRelay</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Tiny loopback Kestrel WebSocket server (no NuGet packages). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CaptionRelay.Tests" />
+  </ItemGroup>
+
+</Project>

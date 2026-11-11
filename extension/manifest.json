@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "CaptionRelay",
+  "version": "0.1.0",
+  "description": "Receives Live Captions text from the CaptionRelay app and submits it in your Gemini tab."
+}
