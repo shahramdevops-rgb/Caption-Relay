@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using CaptionRelay.Captions;
 using Xunit;
@@ -10,13 +12,16 @@ using Xunit.Abstractions;
 namespace CaptionRelay.Tests
 {
     /// <summary>
-    /// Replays real Live Captions snapshots (recorded with tools/CaptionRecorder while tools/tts/speak.ps1 read
-    /// tools/tts/interview-script.txt aloud) through TranscriptMerger.
+    /// Replays real Live Captions snapshots (recorded with tools/CaptionRecorder while tools/tts/speak.ps1 read the
+    /// tools/tts scripts aloud) through TranscriptMerger.
+    /// - Interview: 4 minutes, freshly started Live Captions, no scrolling.
+    /// - LongScroll: 10 minutes (lecture + interview); Live Captions scrolled 11 times once it held ~4,300-4,800
+    ///   chars (~800 words), dropping 60-80 words at a time.
     /// </summary>
     public class ReplayTests
     {
-        private const string Fixture = "livecaptions-tts-interview.jsonl";
-        private const string Script = "interview-script.txt";
+        private const string Interview = "Interview";
+        private const string LongScroll = "LongScroll";
 
         private readonly ITestOutputHelper _out;
 
@@ -26,9 +31,19 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
-        public void RealSnapshots_TranscriptCoversScript_NoDuplicates()
+        public void LongRecording_LiveCaptionsReallyScrolled()
         {
-            List<string> snapshots = LoadSnapshots();
+            List<string> snapshots = LoadSnapshots(LongScroll);
+            string[] first = Words(LoadScript(LongScroll)).Take(4).ToArray();
+            Assert.False(Words(snapshots[^1]).Take(4).SequenceEqual(first), "expected the start to have scrolled off");
+        }
+
+        [Theory]
+        [InlineData(Interview)]
+        [InlineData(LongScroll)]
+        public void RealSnapshots_TranscriptCoversScript_NoDuplicates(string recording)
+        {
+            List<string> snapshots = LoadSnapshots(recording);
             var m = new TranscriptMerger();
             var kinds = new Dictionary<MergeKind, int>();
             foreach (string s in snapshots)
@@ -38,7 +53,7 @@ namespace CaptionRelay.Tests
             }
 
             string[] full = Words(m.Full);
-            string[] script = ScriptWords();
+            string[] script = Words(LoadScript(recording));
             int lcs = Lcs(full, script);
             double coverage = (double)lcs / script.Length;
 
@@ -66,12 +81,15 @@ namespace CaptionRelay.Tests
         }
 
         [Theory]
-        [InlineData(7)]
-        [InlineData(23)]
-        [InlineData(61)]
-        public void RealSnapshots_SendsAtAnyMoment_LoseNothing(int sendEvery)
+        [InlineData(Interview, 7)]
+        [InlineData(Interview, 23)]
+        [InlineData(Interview, 61)]
+        [InlineData(LongScroll, 9)]
+        [InlineData(LongScroll, 41)]
+        [InlineData(LongScroll, 157)]
+        public void RealSnapshots_SendsAtAnyMoment_LoseNothing(string recording, int sendEvery)
         {
-            List<string> snapshots = LoadSnapshots();
+            List<string> snapshots = LoadSnapshots(recording);
             var m = new TranscriptMerger();
             int sentIndex = 0;
             var sent = new List<string>();
@@ -120,7 +138,7 @@ namespace CaptionRelay.Tests
         [InlineData(150, 29)]
         public void RealSnapshots_WithSimulatedScrolling_LoseNothing_NoDuplicates(int visibleWords, int sendEvery)
         {
-            List<string> snapshots = LoadSnapshots().Select(s => LastWords(s, visibleWords)).ToList();
+            List<string> snapshots = LoadSnapshots(Interview).Select(s => LastWords(s, visibleWords)).ToList();
             var m = new TranscriptMerger();
             int sentIndex = 0;
             var sent = new List<string>();
@@ -139,7 +157,7 @@ namespace CaptionRelay.Tests
 
             sent.Add(m.Full.Substring(sentIndex));
 
-            string[] truth = Words(LoadSnapshots()[^1]); // Live Captions' own final text of the whole recording
+            string[] truth = Words(LoadSnapshots(Interview)[^1]); // Live Captions' own final text of the whole recording
             string[] full = Words(m.Full);
             string[] delivered = sent.SelectMany(Words).ToArray();
 
@@ -164,11 +182,15 @@ namespace CaptionRelay.Tests
             return words.Count <= n ? text : text.Substring(words[words.Count - n].Start);
         }
 
-        private static List<string> LoadSnapshots()
+        private static List<string> LoadSnapshots(string recording)
         {
-            string path = Path.Combine(AppContext.BaseDirectory, "Fixtures", Fixture);
+            string file = recording == LongScroll ? "livecaptions-tts-long-scroll.jsonl.gz" : "livecaptions-tts-interview.jsonl.gz";
+            string path = Path.Combine(AppContext.BaseDirectory, "Fixtures", file);
             var list = new List<string>();
-            foreach (string line in File.ReadAllLines(path))
+            using var gzip = new GZipStream(File.OpenRead(path), CompressionMode.Decompress);
+            using var reader = new StreamReader(gzip, Encoding.UTF8);
+            string? line;
+            while ((line = reader.ReadLine()) != null)
             {
                 if (line.Trim().Length == 0)
                 {
@@ -182,11 +204,14 @@ namespace CaptionRelay.Tests
             return list;
         }
 
-        private static string[] ScriptWords()
+        /// <summary>What was spoken after the recorder's start marker.</summary>
+        private static string LoadScript(string recording)
         {
-            string text = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", Script));
-            int marker = text.IndexOf("starts now.", StringComparison.OrdinalIgnoreCase);
-            return Words(text.Substring(marker + "starts now.".Length));
+            string Read(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
+            (string text, string marker) = recording == LongScroll
+                ? (Read("lecture-script.txt") + "\n" + Read("interview-script.txt"), "begins here.")
+                : (Read("interview-script.txt"), "starts now.");
+            return text.Substring(text.IndexOf(marker, StringComparison.OrdinalIgnoreCase) + marker.Length);
         }
 
         private static string[] Words(string text) =>

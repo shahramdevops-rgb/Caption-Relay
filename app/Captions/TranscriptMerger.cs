@@ -26,6 +26,8 @@ namespace CaptionRelay.Captions
     public sealed class MergeResult
     {
         private readonly List<(int OldEnd, int NewEnd)> _pairs;
+        private string? _oldText;
+        private string? _newText;
 
         internal MergeResult(MergeKind kind, int stableLength, int newLength, List<(int OldEnd, int NewEnd)>? pairs = null)
         {
@@ -57,6 +59,7 @@ namespace CaptionRelay.Captions
             }
 
             int mapped = StableLength;
+            int matchedOldEnd = -1;
             foreach ((int oldEnd, int newEnd) in _pairs)
             {
                 if (oldEnd > oldIndex)
@@ -65,9 +68,44 @@ namespace CaptionRelay.Captions
                 }
 
                 mapped = newEnd;
+                matchedOldEnd = oldEnd;
+            }
+
+            // Keep punctuation that followed the word ("video." stays before the cut, not after it).
+            if (matchedOldEnd >= 0 && _oldText != null && _newText != null && HasPunctuation(_oldText, matchedOldEnd, oldIndex))
+            {
+                while (mapped < _newText.Length && IsPunctuation(_newText[mapped]))
+                {
+                    mapped++;
+                }
             }
 
             return Math.Min(mapped, NewLength);
+        }
+
+        internal string? OldTextForMapping
+        {
+            set => _oldText = value;
+        }
+
+        internal string? NewTextForMapping
+        {
+            set => _newText = value;
+        }
+
+        private static bool IsPunctuation(char c) => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c);
+
+        private static bool HasPunctuation(string text, int from, int to)
+        {
+            for (int i = from; i < to && i < text.Length; i++)
+            {
+                if (IsPunctuation(text[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -223,8 +261,9 @@ namespace CaptionRelay.Captions
                 return new MergeResult(MergeKind.Unchanged, _full.Length, _full.Length);
             }
 
+            string oldFull = _full;
             _full = newFull;
-            return new MergeResult(MergeKind.Replaced, p, _full.Length, pairs);
+            return new MergeResult(MergeKind.Replaced, p, _full.Length, pairs) { OldTextForMapping = oldFull, NewTextForMapping = newFull };
         }
 
         private MergeResult ApplyAppend(string w, int wFrom, MergeKind kind)

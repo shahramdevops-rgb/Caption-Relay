@@ -35,7 +35,14 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       of a real 4-minute Live Captions recording (tools/CaptionRecorder + tools/tts/speak.ps1).
       Learned: a freshly started Live Captions kept all 4 minutes (616 words) on screen without scrolling, and
       rewrote words long after they appeared ("dot net eight" → ".net 8", "forty two" → "42", "I I I" → "III").
-- [ ] **Phase 3 — Continuous capture**: ~120 ms poller, sentIndex/pending, sessions/*.txt with [SENT]/[SKIPPED] markers.
+- [x] **Phase 3 — Continuous capture**: CaptionCapture polls every pollMs on a background thread, keeps sentIndex
+      (Take/Confirm/Restore/Skip, all positions mapped through merges), ignores text on screen at startup
+      ([SKIPPED] "text on screen at startup"), restarts Live Captions every 5 s if closed, writes
+      sessions/yyyy-MM-dd_HHmm.txt every 2 s (last 40 words held back while speaking, an unconfirmed send blocks
+      the file at its cut), deletes sessions older than sessionRetentionDays (30).
+      Real run: app + 10 min of TTS; Live Captions scrolled 11 times after ~4,300-4,800 chars (~800 words),
+      dropping 60-80 words at a time; the session file had all 1,547 words (97.5% of the script, rest are
+      recognition errors), no duplicates; app used 3 s CPU and 72 MB.
 - [ ] **Phase 4 — Hotkeys**: Ctrl+Shift alone = send, F9 = skip, 300 ms double-press guard, minSendChars.
 - [ ] **Phase 5 — WebSocket server**: loopback Kestrel, token + Origin check, provider-neutral protocol
       (hello with protocol version, ping/pong, send, ack with provider), 3 s ack timeout restores sentIndex,

@@ -17,15 +17,22 @@ namespace CaptionRelay.Tools
     /// start marker ("... starts now") appears; then only the text after the marker is kept, until the marker
     /// scrolls off (older text has scrolled off before it).
     ///
-    /// Usage: CaptionRecorder --out file.jsonl [--pollMs 120] [--maxSeconds 480] [--doneFile path] [--afterDoneMs 4000]
+    /// Usage: CaptionRecorder --out file.jsonl [--marker regex] [--pollMs 120] [--maxSeconds 480] [--doneFile path] [--afterDoneMs 4000]
     /// Stops when doneFile exists (+afterDoneMs), or after maxSeconds.
     /// </summary>
     internal static class Program
     {
-        private static readonly Regex StartMarker = new Regex(@"start\w*\s+now\W*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        // The LAST occurrence counts (RightToLeft): an older recording may still be on screen with the same marker.
+        private static Regex _startMarker = new Regex(@"start\w*\s+now\W*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.RightToLeft);
 
         private static int Main(string[] args)
         {
+            string? marker = Arg(args, "--marker");
+            if (marker != null)
+            {
+                _startMarker = new Regex(marker, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.RightToLeft);
+            }
+
             string? outPath = Arg(args, "--out");
             if (outPath == null)
             {
@@ -100,7 +107,7 @@ namespace CaptionRelay.Tools
 
         private static string? Sanitize(string text, ref bool markerSeen)
         {
-            Match m = StartMarker.Match(text);
+            Match m = _startMarker.Match(text);
             if (m.Success)
             {
                 markerSeen = true;

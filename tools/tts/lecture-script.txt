@@ -1,0 +1,47 @@
+Okay, the second recording begins here.
+Today I want to talk about how a web request travels from the browser to the database and back again.
+When you type an address into the browser and press enter, the first thing that happens is a DNS lookup.
+The browser asks a name server for the IP address of the host, and the answer is usually cached for a while.
+Then the browser opens a TCP connection to that address, and for a secure site it also performs a TLS handshake.
+During the handshake the client and the server agree on keys, and the server proves its identity with a certificate.
+Only after all of that does the browser send the actual HTTP request, with a method, a path, and some headers.
+On the server side, the request often arrives first at a load balancer rather than at the application itself.
+The load balancer chooses one of several application servers, for example by round robin or by the number of open connections.
+In a typical ASP dot net application, the request then passes through a pipeline of middleware components.
+Each middleware can look at the request, change it, stop it early, or pass it on to the next component.
+Authentication, logging, compression, and error handling are all common examples of middleware.
+At the end of the pipeline, routing decides which controller action or which minimal API endpoint should handle the request.
+Model binding turns the route values, the query string, and the request body into typed parameters.
+Validation then checks those parameters, and if something is wrong, the server can return a four hundred error right away.
+If the input is valid, the endpoint calls into the application layer, where the real business rules live.
+A good application layer does not know anything about HTTP. It only knows about commands, queries, and domain objects.
+This separation makes the code easier to test, because you can call the business rules without starting a web server.
+Most requests eventually need data, so the application layer talks to a repository or directly to an ORM such as Entity Framework.
+The ORM builds a SQL statement, opens a connection from the connection pool, and sends the statement to the database server.
+Connection pooling matters a lot. Opening a brand new connection for every request would be slow and would waste resources.
+The database parses the statement, builds an execution plan, and then reads the pages it needs from memory or from disk.
+If there is a suitable index, the database can jump straight to the right rows instead of scanning the whole table.
+That is why a missing index can turn a query that takes two milliseconds into a query that takes two seconds.
+When the rows come back, the ORM maps them to objects, and the connection goes back to the pool for the next request.
+Now the application layer can apply its rules and decide what the response should look like.
+Often the result is converted into a data transfer object, so that internal details never leak out to the client.
+The response is serialized, usually to JSON, and travels back through the middleware pipeline in reverse order.
+On the way out, a middleware might compress the body or add headers for caching and security.
+Caching deserves its own discussion, because it is one of the most effective ways to make a system fast.
+You can cache in the browser, in a content delivery network, in the application memory, or in a distributed cache such as Redis.
+Each layer has different trade offs. A cache close to the user is very fast, but it is harder to invalidate.
+There is an old saying that there are only two hard things in computer science, cache invalidation and naming things.
+Let me say that again, because people always smile at it. There are only two hard things in computer science, cache invalidation and naming things.
+Another important topic is what happens when something goes wrong in the middle of all these steps.
+A network call can time out, a database can be busy, or a downstream service can return an error.
+Good systems use timeouts on every remote call, retries with exponential backoff, and circuit breakers to avoid making things worse.
+They also log enough information to understand a failure later, ideally with a correlation identifier that follows the request everywhere.
+With distributed tracing, you can see the whole journey of one request across many services on a single timeline.
+Finally, think about scale. One server can handle a surprising number of requests if the code is efficient and mostly asynchronous.
+Asynchronous code lets a thread go back to the pool while it waits for the database, so the same threads can serve many requests.
+When one server is not enough, you add more servers behind the load balancer, which is called horizontal scaling.
+Horizontal scaling works best when the servers are stateless, so any server can handle any request.
+State such as user sessions then moves to a shared store, for example a database or a distributed cache.
+So, to summarize, a single click in the browser involves DNS, TCP, TLS, HTTP, a load balancer, middleware, routing, business rules, an ORM, a connection pool, a query plan, an index, and a cache.
+Understanding each step helps you find bottlenecks, explain your design decisions, and answer interview questions with confidence.
+That brings us to the end of this short lecture. Next, we will continue with the interview questions.

@@ -21,6 +21,7 @@
   <ItemGroup>
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\tools\tts\interview-script.txt" Link="Fixtures\interview-script.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\tools\tts\lecture-script.txt" Link="Fixtures\lecture-script.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

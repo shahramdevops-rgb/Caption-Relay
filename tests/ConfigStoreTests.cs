@@ -28,6 +28,8 @@ namespace CaptionRelay.Tests
             Assert.True(result.Config.StartLiveCaptions);
             Assert.True(result.Config.IndicatorVisible);
             Assert.Null(result.Config.IndicatorX);
+            Assert.Equal(30, result.Config.SessionRetentionDays);
+            Assert.False(result.Config.HideLiveCaptions);
             Assert.Empty(result.Warnings);
         }
 
@@ -52,7 +54,7 @@ namespace CaptionRelay.Tests
             ConfigStore.Load(path);
 
             string json = File.ReadAllText(path);
-            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "prefix", "minSendChars", "pollMs", "sound", "startLiveCaptions", "indicatorX", "indicatorY", "indicatorVisible" })
+            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "prefix", "minSendChars", "pollMs", "sound", "startLiveCaptions", "indicatorX", "indicatorY", "indicatorVisible", "sessionRetentionDays", "hideLiveCaptions" })
             {
                 Assert.Contains("\"" + key + "\"", json);
             }

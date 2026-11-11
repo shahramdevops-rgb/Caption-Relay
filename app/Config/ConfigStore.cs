@@ -187,6 +187,13 @@ namespace CaptionRelay.Config
                 changed = true;
             }
 
+            if (c.SessionRetentionDays < 0 || c.SessionRetentionDays > 3650)
+            {
+                warnings.Add($"sessionRetentionDays {c.SessionRetentionDays} is out of range 0-3650; reset to {AppConfig.DefaultSessionRetentionDays}.");
+                c.SessionRetentionDays = AppConfig.DefaultSessionRetentionDays;
+                changed = true;
+            }
+
             if (string.IsNullOrWhiteSpace(c.SendKey))
             {
                 c.SendKey = AppConfig.DefaultSendKey;

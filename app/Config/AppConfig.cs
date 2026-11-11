@@ -8,6 +8,7 @@ namespace CaptionRelay.Config
         public const string DefaultSkipKey = "F9";
         public const int DefaultMinSendChars = 3;
         public const int DefaultPollMs = 120;
+        public const int DefaultSessionRetentionDays = 30;
 
         /// <summary>Loopback WebSocket port (ws://127.0.0.1:{port}/relay).</summary>
         public int Port { get; set; } = DefaultPort;
@@ -38,5 +39,11 @@ namespace CaptionRelay.Config
         public int? IndicatorY { get; set; }
 
         public bool IndicatorVisible { get; set; } = true;
+
+        /// <summary>Session transcripts in sessions/ older than this are deleted on startup; 0 = keep forever.</summary>
+        public int SessionRetentionDays { get; set; } = DefaultSessionRetentionDays;
+
+        /// <summary>Move the Live Captions window off-screen while the app runs (restored on exit).</summary>
+        public bool HideLiveCaptions { get; set; }
     }
 }
