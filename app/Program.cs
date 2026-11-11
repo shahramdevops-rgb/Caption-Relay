@@ -6,6 +6,7 @@ using CaptionRelay.Infrastructure;
 using CaptionRelay.Input;
 using CaptionRelay.Relay;
 using CaptionRelay.Sending;
+using CaptionRelay.UI;
 
 namespace CaptionRelay
 {
@@ -76,7 +77,18 @@ namespace CaptionRelay
 
             var writer = new SessionWriter(AppPaths.SessionsDir);
             var options = new CaptureOptions { PollMs = config.PollMs, RestartLiveCaptions = config.StartLiveCaptions };
-            using var capture = new CaptionCapture(new CaptionsReader(), writer, options, ensureLiveCaptions: CaptionsReader.EnsureRunning);
+            var reader = new CaptionsReader();
+            using var liveCaptionsWindow = new LiveCaptionsWindow();
+            if (config.HideLiveCaptions)
+            {
+                liveCaptionsWindow.StartHiding();
+            }
+            else
+            {
+                LiveCaptionsWindow.RescueIfOffScreen();
+            }
+
+            using var capture = new CaptionCapture(reader, writer, options, ensureLiveCaptions: CaptionsReader.EnsureRunning);
             capture.Start();
             Log.Info($"Capture started (poll {config.PollMs} ms, session file {writer.FilePath}).");
 
@@ -101,7 +113,7 @@ namespace CaptionRelay
             relay.ConnectionChanged += connected => Log.Info(connected ? $"Extension connected: {relay.ActiveClient}." : "No extension connected.");
             relay.StartAsync().GetAwaiter().GetResult();
 
-            var controller = new SendController(capture, relay, config.MinSendChars, config.Prefix);
+            var controller = new SendController(capture, relay, config.MinSendChars, config.Prefix, providerName: () => IndicatorText.ProviderLabel(relay.ActiveProvider));
             controller.Feedback += (kind, message) => Log.Info($"Feedback ({kind}): {message}");
 
             using var hook = new KeyboardHook(sendKey, skipKey, action => invoker.BeginInvoke(action));
@@ -117,8 +129,8 @@ namespace CaptionRelay
                 Log.Error("Keyboard hook failed; hotkeys are disabled", ex);
             }
 
-            // Tray icon and indicator come in Phase 6 (see ROADMAP.md).
-            Application.Run(new ApplicationContext());
+            using var tray = new TrayContext(config, capture, relay, controller, reader, liveCaptionsWindow);
+            Application.Run(tray);
 
             Log.Info("Exiting normally.");
             return 0;

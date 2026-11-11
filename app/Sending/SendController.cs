@@ -28,10 +28,12 @@ namespace CaptionRelay.Sending
         private readonly string _prefix;
         private readonly Func<long> _tickMs;
         private readonly int _guardMs;
+        private readonly Func<string> _providerName;
         private long _lastSend = long.MinValue / 2;
 
-        public SendController(CaptionCapture capture, IMessageSender sender, int minSendChars, string prefix, Func<long>? tickMs = null, int guardMs = DefaultGuardMs)
+        public SendController(CaptionCapture capture, IMessageSender sender, int minSendChars, string prefix, Func<long>? tickMs = null, int guardMs = DefaultGuardMs, Func<string>? providerName = null)
         {
+            _providerName = providerName ?? (() => "Gemini");
             _capture = capture;
             _sender = sender;
             _minSendChars = minSendChars;
@@ -91,7 +93,7 @@ namespace CaptionRelay.Sending
                 {
                     _capture.Restore(ticket);
                     Log.Info($"Hotkey: send, {taken.Text.Length} chars pending, but Gemini is not connected (text kept).");
-                    Report(FeedbackKind.Error, "Gemini not connected");
+                    Report(FeedbackKind.Error, _providerName() + " not connected");
                     return;
                 }
 
@@ -118,7 +120,7 @@ namespace CaptionRelay.Sending
                     case SendStatus.NotConnected:
                         _capture.Restore(ticket);
                         Log.Warn("Send result: extension disconnected (text kept).");
-                        Report(FeedbackKind.Error, "Gemini not connected");
+                        Report(FeedbackKind.Error, _providerName() + " not connected");
                         break;
                     default:
                         _capture.Restore(ticket);

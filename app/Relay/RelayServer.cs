@@ -89,6 +89,18 @@ namespace CaptionRelay.Relay
             }
         }
 
+        /// <summary>The chat the active extension delivers to (hello "provider", e.g. "gemini"); null if not told.</summary>
+        public string? ActiveProvider
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _connections.Count > 0 ? _connections[^1].Provider : null;
+                }
+            }
+        }
+
         /// <summary>Why the server could not start (e.g. port in use); null when running.</summary>
         public string? StartError { get; private set; }
 
@@ -290,6 +302,7 @@ namespace CaptionRelay.Relay
             }
 
             conn.Client = Str(hello.Value, "client") ?? "extension " + (Str(hello.Value, "version") ?? "?");
+            conn.Provider = Str(hello.Value, "provider");
             conn.Protocol = hello.Value.TryGetProperty("protocol", out JsonElement p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 1;
             await conn.SendJsonAsync(new { type = "welcome", app = AppInfo.Name, version = AppInfo.Version, protocol = ProtocolVersion }, CancellationToken.None).ConfigureAwait(false);
             return true;
@@ -422,6 +435,8 @@ namespace CaptionRelay.Relay
             public string Client { get; set; } = "?";
 
             public int Protocol { get; set; } = 1;
+
+            public string? Provider { get; set; }
 
             public bool TimedOut { get; private set; }
 

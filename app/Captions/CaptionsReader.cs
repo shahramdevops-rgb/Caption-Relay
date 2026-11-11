@@ -75,6 +75,17 @@ namespace CaptionRelay.Captions
             }
         }
 
+        /// <summary>Drops the cached element so the next read finds Live Captions again ("Reconnect").</summary>
+        public void Reset()
+        {
+            lock (_lock)
+            {
+                _element = null;
+                _windowSeen = false;
+                _lastFindTick = long.MinValue / 2;
+            }
+        }
+
         /// <summary>Collapses all whitespace runs to single spaces; the placeholder becomes "".</summary>
         public static string Normalize(string? raw)
         {

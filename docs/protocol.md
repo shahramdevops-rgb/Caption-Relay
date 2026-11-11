@@ -20,7 +20,7 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 
 | Direction | Message | Notes |
 |---|---|---|
-| ext → app | `{"type":"hello","token":"…","version":"0.1.0","protocol":1,"client":"CaptionRelay extension 0.1.0"}` | first message |
+| ext → app | `{"type":"hello","token":"…","version":"0.1.0","protocol":1,"client":"CaptionRelay extension 0.1.0","provider":"gemini"}` | first message; `provider` = the chat it delivers to (label in the indicator) |
 | app → ext | `{"type":"welcome","app":"CaptionRelay","version":"0.1.0","protocol":1}` | handshake accepted |
 | app → ext | `{"type":"error","reason":"bad token"}` | then the socket is closed |
 | app → ext | `{"type":"ping"}` | every 20 s; keeps the MV3 service worker alive |

@@ -56,7 +56,15 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       with the fake extension answering sent / no ack / queued / error / sent: every result and text-kept case as
       expected, session file has [SENT] only for delivered sends; wrong token and web origin rejected;
       hotkey → ack round trip 54 ms (50 ms of it the client's simulated delay).
-- [ ] **Phase 6 — Tray + indicator pill**: no-focus draggable pill, saved position, flash messages, expand panel, optional sound.
+- [x] **Phase 6 — Tray + indicator pill**: IndicatorForm (custom-painted pill that never activates:
+      ShowWithoutActivation, NOACTIVATE|TOOLWINDOW|TOPMOST in CreateParams, MA_NOACTIVATE; click toggles a panel
+      above it with the pending text, drag moves it, position saved and checked against current monitors, 1.5 s
+      flash messages, title mirrors the text for UI Automation), tray icon drawn at runtime (green/red dot) with
+      menu (show/hide indicator, sound, hide Live Captions window, sessions folder, config, reconnect, exit),
+      generated tones (sent/queued/error). Provider label comes from the extension's hello. Real test
+      (tools/keytest/ui-test.ps1): clicks and triple clicks toggle, drag moves and is restored after restart,
+      foreground never changes, menu via right click (opens on button up; focus returned after), hide/restore
+      Live Captions window exact, exit while hidden restores it.
 - [ ] **Phase 7 — Extension connection + provider registry**: MV3 service worker WebSocket, backoff 1/2/5 s,
       30 s alarm, ON/OFF badge, provider registry, options page (port, token, active provider).
 - [ ] **Phase 8 — Gemini provider delivery**: shared web-chat module + providers/gemini/selectors.js, insert
