@@ -65,8 +65,13 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       (tools/keytest/ui-test.ps1): clicks and triple clicks toggle, drag moves and is restored after restart,
       foreground never changes, menu via right click (opens on button up; focus returned after), hide/restore
       Live Captions window exact, exit while hidden restores it.
-- [ ] **Phase 7 — Extension connection + provider registry**: MV3 service worker WebSocket, backoff 1/2/5 s,
-      30 s alarm, ON/OFF badge, provider registry, options page (port, token, active provider).
+- [x] **Phase 7 — Extension connection + provider registry**: MV3 extension with a fixed id
+      (hpmjjnjmlhbolpmeafdkmdldlfmoaaee via "key"), lib/connection.js (hello with provider, ping/pong, ack,
+      backoff 1/2/5 s, testable without chrome.*), service worker with a 30 s alarm and ON/OFF badge, provider
+      registry (Gemini stub until Phase 8), options page (port, token, provider, live status, reconnect),
+      "Copy token" in the app menu. 11 Node tests. Real Chrome: connected after pasting the token; app restart →
+      reconnected 0.9 s after the server was up; Ctrl+Shift → ack from Chrome in 4 ms (error "not implemented
+      yet", text kept); stayed connected through 4 idle minutes.
 - [ ] **Phase 8 — Gemini provider delivery**: shared web-chat module + providers/gemini/selectors.js, insert
       fallback chain with verification, keep draft, submit fallbacks, verify message appeared, ack, options "Test" button.
 - [ ] **Phase 9 — Busy handling** (shared web-chat module): queue while the provider is generating, merge queued

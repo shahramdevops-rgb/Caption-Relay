@@ -2,5 +2,19 @@
   "manifest_version": 3,
   "name": "CaptionRelay",
   "version": "0.1.0",
-  "description": "Receives Live Captions text from the CaptionRelay app and submits it in your Gemini tab."
+  "description": "Receives Live Captions text from the CaptionRelay Windows app and submits it in your chat tab (Gemini).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmlBtoeV2pBqK5VNyoeUHj9MvJx1k5/X0wRpP6Gn4+hKHy6kQp6LjO+mHFf/9vT5ZRNzjxddjnfa0hwNYuXvKEGe45QTghVrAJZG2XgO8BVaQWtvCH/PJjhGU9CuZhrMaRdWcuFNPt5ri/q60ksWEV22iqBMBRDIJf1/Y+bzISzux0pgWvA9bEi5N7pu9tCFKjMiubX8oC8/9+fmo3OpUFuXwaTFtG9wUwaxoKQIHhLyjoBY0WalKV85c3iuWnnPV7daGaB+TQfqyDecRl9LrzCBT9ZDuKKIB2vjR7MEQXs7JvRaBdDYBm+Up/u6sr2XJ+Mouyd5noioyYcy5iG5aRQIDAQAB",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://gemini.google.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "CaptionRelay",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
+  },
+  "options_page": "options.html",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
 }

@@ -54,6 +54,7 @@ namespace CaptionRelay.UI
             _menu.Items.Add(_hideLcItem);
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Open sessions folder", null, (_, _) => OpenSessions()));
+            _menu.Items.Add(new ToolStripMenuItem("Copy token (for the extension)", null, (_, _) => CopyToken()));
             _menu.Items.Add(new ToolStripMenuItem("Open config", null, (_, _) => OpenConfig()));
             _menu.Items.Add(new ToolStripMenuItem("Reconnect Live Captions", null, (_, _) => ReconnectLiveCaptions()));
             _menu.Items.Add(new ToolStripSeparator());
@@ -272,6 +273,22 @@ namespace CaptionRelay.UI
 
         // Opened for the user in Notepad (it contains the token; never logged or shown anywhere else).
         private void OpenConfig() => Start("notepad.exe", "\"" + AppPaths.ConfigFile + "\"");
+
+        /// <summary>Puts the token on the clipboard for the extension's options page (never logged).</summary>
+        private void CopyToken()
+        {
+            try
+            {
+                Clipboard.SetText(_config.Token);
+                Log.Info($"Token (fingerprint {TokenGenerator.Fingerprint(_config.Token)}) copied to the clipboard.");
+                _indicator.Flash(FeedbackKind.Success, "Token copied", 2500);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Copying the token failed", ex);
+                _indicator.Flash(FeedbackKind.Error, "Could not copy token");
+            }
+        }
 
         private void ReconnectLiveCaptions()
         {

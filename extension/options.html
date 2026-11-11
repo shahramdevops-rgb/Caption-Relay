@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CaptionRelay options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>CaptionRelay</h1>
+    <p class="hint">Connects this browser to the CaptionRelay Windows app. Copy the token from the app's tray menu
+      (<b>Copy token (for the extension)</b>) and paste it here.</p>
+
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Checking…</span></div>
+
+    <form id="form">
+      <label>Port
+        <input id="port" type="number" min="1024" max="65535" required>
+      </label>
+      <label>Token
+        <span class="row">
+          <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="paste the token here">
+          <label class="inline"><input id="showToken" type="checkbox"> show</label>
+        </span>
+      </label>
+      <label>Deliver to
+        <select id="provider"></select>
+      </label>
+      <div class="buttons">
+        <button type="submit">Save</button>
+        <button type="button" id="reconnect">Reconnect</button>
+        <span id="saved" class="saved"></span>
+      </div>
+    </form>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
