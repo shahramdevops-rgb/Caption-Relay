@@ -90,9 +90,20 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       the target. Real Gemini: a text sent mid-answer was submitted automatically 33 s later after a 3,800-word
       answer; two texts sent mid-answer were queued in the same tab and submitted as one message; session file has
       [SENT …] (queued) for both. Found and fixed: a later send went to another Gemini tab the user was viewing.
-- [ ] **Phase 10 — Background/unfocused tab** (highest risk): real experiments with throttling/freezing,
-      execCommand without focus, open a background tab if none exists.
+- [x] **Phase 10 — Background/unfocused tab** (highest risk): the target tab is marked not auto-discardable; a
+      quick ping checks the content script first and a discarded or unresponsive (frozen) tab is reloaded and the text
+      delivered after load ("queued" + result); waits use a MutationObserver instead of short timers (Chrome delays
+      timers in hidden pages to ~1 s). Real experiments (Chrome 157): execCommand + click work without focus in a hidden
+      tab; tab behind another tab: sent in 51–57 ms in-page (~60 ms from the hotkey); minimized window: 69 ms
+      (was 1,064 ms before the timer fix); after 7 min minimized (intensive throttling) still delivered, tab neither
+      frozen nor discarded; Gemini keeps generating in a hidden tab and the queue flushed there (29 s); the tab stayed
+      usable after ~4 h in the background; no Gemini tab → background tab opened and delivered (Phase 8).
+      Not testable here: a real Memory Saver discard / freeze (prevented by autoDiscardable, handled by reload).
 - [ ] **Phase 11 — Wrap-up**: README, recommended Live Captions settings, verify every "Done when" item.
+
+- [ ] **Phase 12 — Learning guide (PDF)**: a clean, illustrated PDF that teaches how the project was designed —
+      ideas, architecture, layers, data flow, protocol, testing strategy and the decisions behind them, with
+      schematic diagrams (not a code walkthrough).
 
 ## Later (after the Gemini version is done)
 

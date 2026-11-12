@@ -5,6 +5,32 @@
 
   const TAG = '[CaptionRelay]';
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /**
+   * Resolves with cond()'s first truthy value, or null after ms. Re-checks on every DOM change (MutationObserver)
+   * instead of short timers: in a hidden tab Chrome delays timers to ~1 s (or more), DOM observers are not delayed.
+   * (The deadline timer itself may fire late in a hidden tab; that only matters on failure.)
+   */
+  function waitFor(cond, ms) {
+    const first = cond();
+    if (first) return Promise.resolve(first);
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        observer.disconnect();
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const observer = new MutationObserver(() => {
+        const v = cond();
+        if (v) finish(v);
+      });
+      observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+      const timer = setTimeout(() => finish(cond() || null), ms);
+    });
+  }
   const norm = (s) => (s || '').replace(/​/g, '').replace(/\s+/g, ' ').trim();
 
   function visible(el) {
@@ -63,8 +89,7 @@
     try {
       selectAll(box);
       document.execCommand('insertText', false, full);
-      await sleep(30);
-      if (ok()) return 'execCommand';
+      if (await waitFor(ok, 150)) return 'execCommand';
     } catch (e) {
       console.warn(TAG, 'execCommand failed', e);
     }
@@ -75,8 +100,7 @@
       const dt = new DataTransfer();
       dt.setData('text/plain', full);
       box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-      await sleep(50);
-      if (ok()) return 'paste';
+      if (await waitFor(ok, 150)) return 'paste';
     } catch (e) {
       console.warn(TAG, 'paste failed', e);
     }
@@ -90,8 +114,7 @@
         box.appendChild(p);
       }
       box.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: full }));
-      await sleep(50);
-      if (ok()) return 'innerText';
+      if (await waitFor(ok, 150)) return 'innerText';
     } catch (e) {
       console.warn(TAG, 'direct set failed', e);
     }
@@ -133,14 +156,13 @@
   }
 
   async function submit(sel, box, waitMs) {
-    const end = Date.now() + waitMs;
-    while (Date.now() < end) {
-      const found = find(sel.sendButton);
-      if (found && isEnabled(found.el)) {
-        found.el.click();
-        return 'button ' + found.selector;
-      }
-      await sleep(50);
+    const found = await waitFor(() => {
+      const f = find(sel.sendButton);
+      return f && isEnabled(f.el) ? f : null;
+    }, waitMs);
+    if (found) {
+      found.el.click();
+      return 'button ' + found.selector;
     }
     const near = closestButton(sel, box);
     if (near) {
@@ -156,14 +178,12 @@
 
   /** True once the box was emptied, a new user turn appeared, or generation started. */
   async function appeared(sel, box, turnsBefore, waitMs) {
-    const end = Date.now() + waitMs;
-    while (Date.now() < end) {
+    return waitFor(() => {
       if (count(sel.userTurn) > turnsBefore) return 'new user turn';
       if (boxText(box) === '') return 'input emptied';
       if (isBusy(sel)) return 'generation started';
-      await sleep(50);
-    }
-    return null;
+      return null;
+    }, waitMs);
   }
 
   function findBox(sel) {
