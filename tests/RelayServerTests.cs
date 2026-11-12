@@ -240,6 +240,37 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public async Task QueuedAck_CarriesId_LaterResultRaisesDeliveryResult()
+        {
+            using RelayServer server = await StartServer();
+            var results = new System.Collections.Concurrent.ConcurrentQueue<(string Id, SendOutcome Outcome)>();
+            server.DeliveryResult += (id, o) => results.Enqueue((id, o));
+            using Client c = await Client.Connect(Port);
+            await c.ReceiveType("welcome");
+            await WaitFor(() => server.IsConnected);
+
+            Task<SendOutcome> sending = server.SendAsync("while answering");
+            JsonElement send = (await c.ReceiveType("send"))!.Value;
+            string id = send.GetProperty("id").GetString()!;
+            await c.Send(new { type = "ack", id, status = "queued", provider = "gemini" });
+            SendOutcome ack = await sending;
+            Assert.Equal(SendStatus.Queued, ack.Status);
+            Assert.Equal(id, ack.Id);
+
+            await c.Send(new { type = "result", id, status = "sent", detail = "execCommand", provider = "gemini" });
+            await WaitFor(() => results.Count == 1);
+            Assert.True(results.TryDequeue(out var r));
+            Assert.Equal(id, r.Id);
+            Assert.Equal(SendStatus.Sent, r.Outcome.Status);
+
+            await c.Send(new { type = "result", id = "other", status = "error", detail = "still answering after 3 min" });
+            await WaitFor(() => results.Count == 1);
+            Assert.True(results.TryDequeue(out r));
+            Assert.Equal(SendStatus.Error, r.Outcome.Status);
+            Assert.Equal("still answering after 3 min", r.Outcome.Detail);
+        }
+
+        [Fact]
         public async Task NoAck_NoResponse_ThenLateAckIgnored_NextSendWorks()
         {
             using RelayServer server = await StartServer();

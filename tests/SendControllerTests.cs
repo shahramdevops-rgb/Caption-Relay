@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +19,11 @@ namespace CaptionRelay.Tests
 
         private sealed class FakeSender : IMessageSender
         {
+            public event Action<string, SendOutcome>? DeliveryResult;
+
             public bool IsConnected { get; set; } = true;
+
+            public void RaiseResult(string id, SendOutcome outcome) => DeliveryResult?.Invoke(id, outcome);
 
             public SendOutcome Next { get; set; } = new SendOutcome(SendStatus.Sent, provider: "gemini");
 
@@ -33,11 +38,11 @@ namespace CaptionRelay.Tests
 
         private sealed class Rig
         {
-            public Rig(string prefix = "")
+            public Rig(string prefix = "", TimeSpan? queueTimeout = null)
             {
                 Capture = new CaptionCapture(Source, null);
                 Capture.PollOnce(); // empty screen at startup
-                Controller = new SendController(Capture, Sender, 3, prefix, () => Tick);
+                Controller = new SendController(Capture, Sender, 3, prefix, () => Tick, queueTimeout: queueTimeout);
                 Controller.Feedback += (kind, message) => Feedback.Add($"{kind}:{message}");
             }
 
@@ -127,7 +132,7 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
-        public async Task Queued_IsConfirmed_NotResent()
+        public async Task Queued_WithoutId_IsConfirmed_NotResent()
         {
             var rig = new Rig();
             rig.Sender.Next = new SendOutcome(SendStatus.Queued);
@@ -136,6 +141,66 @@ namespace CaptionRelay.Tests
             Assert.Equal("Info:Queued", rig.Feedback[^1]);
             await rig.Send();
             Assert.Equal("Info:Nothing new", rig.Feedback[^1]);
+        }
+
+        [Fact]
+        public async Task Queued_ThenResultSent_Confirmed()
+        {
+            var rig = new Rig();
+            rig.Sender.Next = new SendOutcome(SendStatus.Queued, id: "q1");
+            rig.Screen("tell me about your project");
+            await rig.Send();
+            Assert.Equal("Info:Queued", rig.Feedback[^1]);
+            Assert.Equal(1, rig.Controller.QueuedCount);
+
+            rig.Sender.RaiseResult("q1", new SendOutcome(SendStatus.Sent, "execCommand", "gemini", "q1"));
+            Assert.Equal(0, rig.Controller.QueuedCount);
+            Assert.Equal("Success:Sent ✓", rig.Feedback[^1]);
+            await rig.Send();
+            Assert.Equal("Info:Nothing new", rig.Feedback[^1]);
+        }
+
+        [Fact]
+        public async Task Queued_ThenResultError_TextBackAsPending()
+        {
+            var rig = new Rig();
+            rig.Sender.Next = new SendOutcome(SendStatus.Queued, id: "q2");
+            rig.Screen("tell me about your project");
+            await rig.Send();
+            rig.Sender.RaiseResult("q2", new SendOutcome(SendStatus.Error, "still answering after 3 min", "gemini", "q2"));
+            Assert.Equal("Error:Not sent: still answering after 3 min", rig.Feedback[^1]);
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent);
+            rig.Screen("tell me about your project and the team");
+            await rig.Send();
+            Assert.Equal("tell me about your project and the team", rig.Sender.Sent[^1]);
+        }
+
+        [Fact]
+        public async Task Queued_NoResultInTime_TextBackAsPending()
+        {
+            var rig = new Rig(queueTimeout: TimeSpan.FromMilliseconds(100));
+            rig.Sender.Next = new SendOutcome(SendStatus.Queued, id: "q3");
+            rig.Screen("tell me about your project");
+            await rig.Send();
+            await Task.Delay(400);
+            Assert.Equal(0, rig.Controller.QueuedCount);
+            Assert.Equal("Error:Queued text was not sent", rig.Feedback[^1]);
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent);
+            await rig.Send();
+            Assert.Equal("tell me about your project", rig.Sender.Sent[^1]);
+        }
+
+        [Fact]
+        public async Task ResultForUnknownId_Ignored()
+        {
+            var rig = new Rig();
+            rig.Screen("some words here");
+            rig.Sender.RaiseResult("nope", new SendOutcome(SendStatus.Sent));
+            Assert.Empty(rig.Feedback);
+            await rig.Send();
+            Assert.Equal("Success:Sent ✓", rig.Feedback[^1]);
         }
 
         [Fact]

@@ -30,6 +30,7 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 | ext → app | `{"type":"ack","id":"<guid>","status":"queued","provider":"gemini"}` | chat busy; will submit automatically |
 | ext → app | `{"type":"ack","id":"<guid>","status":"error","detail":"input not found","provider":"gemini"}` | failed |
 
+| ext → app | `{"type":"result","id":"<guid>","status":"sent","provider":"gemini"}` | final result of a send acked `queued` (submitted after the answer ended); `status` `error` + `detail` if it was given up |
 | ext → app | `{"type":"log","level":"info","text":"…"}` | diagnostics for the app log (page structure, timings — never chat text) |
 
 Either side may also send `ping` and get `pong`.
@@ -38,4 +39,6 @@ Either side may also send `ping` and get `pong`.
 
 - If no `ack` arrives within 3 s the app shows "no response" and keeps the text for the next send (an ack that
   arrives later is logged and ignored).
+- After `ack` `queued` the app waits for `result` (up to 200 s; the extension gives up after 3 min of answering).
+  `sent` confirms the text; `error` or no result puts it back as pending. Queued texts are merged into one message.
 - A connection that sends nothing for 65 s (no pong) is closed.

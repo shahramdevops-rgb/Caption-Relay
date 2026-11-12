@@ -82,8 +82,14 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       sending while Gemini answers → "Gemini is still answering", text kept and sent after the answer (stop never
       clicked, 2,166-word answer complete); no Gemini tab → background tab opened and the text delivered there while
       hidden and unfocused (~4 s).
-- [ ] **Phase 9 — Busy handling** (shared web-chat module): queue while the provider is generating, merge queued
-      sends, submit when the answer ends.
+- [x] **Phase 9 — Busy handling** (shared web-chat module): while the chat answers, sends are queued in the page
+      (ack "queued"), watched with a MutationObserver + 250 ms poll, merged with a blank line into ONE message and
+      submitted when the answer ends (stop button never clicked); given up after 3 min. New protocol message
+      "result" reports the final outcome per id; the app keeps the text unconfirmed until then (error or no result
+      in 200 s → back to pending); the indicator shows "· queued" until delivered; a tab holding queued text stays
+      the target. Real Gemini: a text sent mid-answer was submitted automatically 33 s later after a 3,800-word
+      answer; two texts sent mid-answer were queued in the same tab and submitted as one message; session file has
+      [SENT …] (queued) for both. Found and fixed: a later send went to another Gemini tab the user was viewing.
 - [ ] **Phase 10 — Background/unfocused tab** (highest risk): real experiments with throttling/freezing,
       execCommand without focus, open a background tab if none exists.
 - [ ] **Phase 11 — Wrap-up**: README, recommended Live Captions settings, verify every "Done when" item.

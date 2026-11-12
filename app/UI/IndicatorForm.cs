@@ -36,6 +36,7 @@ namespace CaptionRelay.UI
         private bool _extensionOk;
         private string _provider = IndicatorText.DefaultProvider;
         private int _words;
+        private int _queued;
         private string _tail = "";
         private string? _flashText;
         private FeedbackKind _flashKind;
@@ -103,13 +104,14 @@ namespace CaptionRelay.UI
             }
         }
 
-        public void SetStatus(bool captionsOk, bool extensionOk, string provider, int words, string tail)
+        public void SetStatus(bool captionsOk, bool extensionOk, string provider, int words, string tail, int queued = 0)
         {
-            if (captionsOk == _captionsOk && extensionOk == _extensionOk && provider == _provider && words == _words && tail == _tail)
+            if (captionsOk == _captionsOk && extensionOk == _extensionOk && provider == _provider && words == _words && tail == _tail && queued == _queued)
             {
                 return;
             }
 
+            _queued = queued;
             _captionsOk = captionsOk;
             _extensionOk = extensionOk;
             _provider = provider;
@@ -191,6 +193,12 @@ namespace CaptionRelay.UI
                 Color c = _flashKind == FeedbackKind.Success ? Ok : _flashKind == FeedbackKind.Error ? Bad : Amber;
                 DrawText(g, _flashText, x, y, c, Width - x - pad);
             }
+            else if (_queued > 0)
+            {
+                // Stays until the queued text is submitted (or fails).
+                x = DrawText(g, "· queued", x, y, Amber, Width - x - pad);
+                DrawText(g, " · " + IndicatorText.Words(_words), x, y, Dim, Width - x - pad);
+            }
             else
             {
                 DrawText(g, "· " + IndicatorText.Words(_words), x, y, Dim, Width - x - pad);
@@ -228,7 +236,7 @@ namespace CaptionRelay.UI
 
         private void Refresh2()
         {
-            Text = IndicatorText.StatusLine(_captionsOk, _extensionOk, _provider, _words, _flashText);
+            Text = IndicatorText.StatusLine(_captionsOk, _extensionOk, _provider, _words, _flashText, _queued);
             AccessibleDescription = _expanded ? "expanded" : "collapsed";
             Invalidate();
         }

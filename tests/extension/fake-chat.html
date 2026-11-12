@@ -68,7 +68,18 @@
         update();
       });
       if (o.breakExecCommand) document.execCommand = () => false;
-      return { box, btn, chat };
+      // Gemini finishes answering: the stop button turns back into the send button.
+      const endBusy = () => {
+        o.busy = false;
+        if (gem) {
+          gem.className = 'send-button has-input submit';
+          btn.setAttribute('aria-label', 'Send message');
+        } else {
+          btn.className = 'send-button';
+        }
+        update();
+      };
+      return { box, btn, chat, endBusy };
     }
 
     const sel = globalThis.CaptionRelaySelectors.gemini;
@@ -182,6 +193,60 @@
         build({ ignoreClicks: true });
         const ack = await chatApi.deliver(sel, 'ignored', { verifyMs: 400 });
         expect(ack.status === 'error' && ack.detail === 'message did not appear after submit', JSON.stringify(ack));
+      });
+
+      // ---- Phase 9: queue while answering ----
+      const waitFor = async (cond, ms = 3000) => { const end = Date.now() + ms; while (!cond() && Date.now() < end) await new Promise((r) => setTimeout(r, 20)); return cond(); };
+
+      await check('not answering → deliverOrQueue sends at once (no result callback)', async () => {
+        const p = build({ real: true });
+        const results = [];
+        const ack = await chatApi.deliverOrQueue(sel, 'direct send', 'id-1', { onResult: (ids, a) => results.push([ids, a.status]) });
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(results.length === 0, 'unexpected result');
+        expect(turns(p)[0] === 'direct send', 'turn: ' + turns(p)[0]);
+      });
+
+      await check('answering → queued, submitted when the answer ends, result reported', async () => {
+        const p = build({ real: true, busy: true });
+        const results = [];
+        const ack = await chatApi.deliverOrQueue(sel, 'wait for the answer', 'id-2', { onResult: (ids, a) => results.push([ids.join(','), a.status]), settleMs: 50 });
+        expect(ack.status === 'queued', JSON.stringify(ack));
+        await new Promise((r) => setTimeout(r, 300));
+        expect(turns(p).length === 0, 'submitted while answering!');
+        p.endBusy();
+        expect(await waitFor(() => results.length === 1), 'no result');
+        expect(results[0][0] === 'id-2' && results[0][1] === 'sent', JSON.stringify(results));
+        expect(turns(p)[0] === 'wait for the answer', 'turn: ' + turns(p)[0]);
+        return 'stop button never clicked: ' + !window.__stopClicked;
+      });
+
+      await check('two sends while answering → merged into ONE message with a blank line', async () => {
+        window.__stopClicked = false;
+        const p = build({ real: true, busy: true });
+        const results = [];
+        const onResult = (ids, a) => results.push([ids.join(','), a.status]);
+        const a1 = await chatApi.deliverOrQueue(sel, 'first part', 'id-3', { onResult, settleMs: 50 });
+        const a2 = await chatApi.deliverOrQueue(sel, 'second part', 'id-4', { onResult, settleMs: 50 });
+        expect(a1.status === 'queued' && a2.status === 'queued', JSON.stringify([a1, a2]));
+        expect(/2 queued/.test(a2.detail), a2.detail);
+        p.endBusy();
+        expect(await waitFor(() => results.length === 1), 'no result');
+        expect(results[0][0] === 'id-3,id-4' && results[0][1] === 'sent', JSON.stringify(results));
+        expect(turns(p).length === 1, 'turns: ' + turns(p).length);
+        expect(/^first part\s+second part$/.test(turns(p)[0]), 'turn: ' + JSON.stringify(turns(p)[0]));
+        expect(!window.__stopClicked, 'stop clicked');
+      });
+
+      await check('answer never ends → given up after maxWait, error result', async () => {
+        const p = build({ real: true, busy: true });
+        const results = [];
+        await chatApi.deliverOrQueue(sel, 'never sent', 'id-5', { onResult: (ids, a) => results.push([ids.join(','), a.status, a.detail]), maxWaitMs: 400, pollMs: 50 });
+        expect(await waitFor(() => results.length === 1, 2000), 'no result');
+        expect(results[0][0] === 'id-5' && results[0][1] === 'error', JSON.stringify(results));
+        expect(turns(p).length === 0, 'submitted');
+        expect(chatApi.queueLength() === 0, 'queue not empty');
+        return results[0][2];
       });
 
       await check('Test: inserts without submitting and reports selectors', async () => {

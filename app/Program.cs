@@ -113,7 +113,13 @@ namespace CaptionRelay
             relay.ConnectionChanged += connected => Log.Info(connected ? $"Extension connected: {relay.ActiveClient}." : "No extension connected.");
             relay.StartAsync().GetAwaiter().GetResult();
 
-            var controller = new SendController(capture, relay, config.MinSendChars, config.Prefix, providerName: () => IndicatorText.ProviderLabel(relay.ActiveProvider));
+            var controller = new SendController(
+                capture,
+                relay,
+                config.MinSendChars,
+                config.Prefix,
+                providerName: () => IndicatorText.ProviderLabel(relay.ActiveProvider),
+                dispatch: action => invoker.BeginInvoke(action));
             controller.Feedback += (kind, message) => Log.Info($"Feedback ({kind}): {message}");
 
             using var hook = new KeyboardHook(sendKey, skipKey, action => invoker.BeginInvoke(action));

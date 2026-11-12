@@ -32,6 +32,7 @@ namespace CaptionRelay.UI
         private readonly Timer _timer = new Timer { Interval = 250 };
         private readonly Icon _iconOk = AppIcons.Create(true);
         private readonly Icon _iconBad = AppIcons.Create(false);
+        private readonly SendController _controller;
         private string? _lastProvider;
         private IntPtr _previousForeground;
         private bool? _lastAllOk;
@@ -98,6 +99,7 @@ namespace CaptionRelay.UI
 
             UpdateShowItem();
 
+            _controller = controller;
             controller.Feedback += OnFeedback;
             _timer.Tick += (_, _) => UpdateStatus();
             _timer.Start();
@@ -191,7 +193,7 @@ namespace CaptionRelay.UI
                 CaptureStatus s = _capture.GetStatus();
                 bool connected = _relay.IsConnected;
                 string provider = Provider();
-                _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail);
+                _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail, _controller.QueuedCount);
                 _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, s.PendingWords, _relay.StartError);
 
                 bool allOk = s.CaptionsAvailable && connected;

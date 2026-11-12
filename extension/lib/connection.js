@@ -178,6 +178,11 @@ export class RelayConnection {
     this.sendJson({ type: 'ack', id: m.id, status: ack.status, detail: ack.detail, provider: ack.provider });
   }
 
+  /** Final result of a send that was acked "queued". */
+  sendResult(id, status, detail, provider) {
+    return this.sendJson({ type: 'result', id, status: status === 'sent' ? 'sent' : 'error', detail, provider });
+  }
+
   /** Diagnostics into the app's log (only when connected; never chat text). */
   sendLog(level, text) {
     return this.sendJson({ type: 'log', level, text: String(text).slice(0, 4000) });

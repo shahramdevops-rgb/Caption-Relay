@@ -1,7 +1,7 @@
 // Shared delivery logic for web-chat providers (Gemini now; ChatGPT/Claude later), run as a content script.
 // Each provider only supplies a selector set (see providers/<id>/selectors.js).
+// Always (re)defined: after an extension reload an old copy may still be in the page; it must be replaced.
 (() => {
-  if (globalThis.CaptionRelayWebChat) return;
 
   const TAG = '[CaptionRelay]';
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -217,6 +217,95 @@
     return { status: 'sent', detail: `${method}, ${how}, ${proof}, ${ms} ms` };
   }
 
+  // ---- Busy handling: queue while the chat is answering, merge, submit when the answer ends ----
+
+  const queue = { items: [], startedAt: 0, observer: null, poll: null, flushing: false, opts: null, sel: null };
+
+  /**
+   * Delivers now, or — while the chat is still answering (or earlier texts are waiting) — queues the text and
+   * acks "queued". Queued texts are merged (blank line between them) into ONE message, submitted as soon as the
+   * answer ends; opts.onResult(ids, ack) then reports the final result of every queued id.
+   */
+  async function deliverOrQueue(sel, text, id, opts = {}) {
+    const diag = opts.onDiag ?? (() => {});
+    if (queue.items.length > 0 || queue.flushing || isBusy(sel)) {
+      return enqueue(sel, text, id, opts, diag);
+    }
+    const ack = await deliver(sel, text, opts);
+    if (ack.status === 'busy') return enqueue(sel, text, id, opts, diag); // started answering just now
+    return ack;
+  }
+
+  function enqueue(sel, text, id, opts, diag) {
+    queue.items.push({ id, text });
+    queue.startedAt ||= Date.now();
+    queue.sel = sel;
+    queue.opts = opts;
+    diag(`queued ${String(id).slice(0, 8)}: ${queue.items.length} waiting for the answer to finish`);
+    watch();
+    return { status: 'queued', detail: `waiting for the answer to finish (${queue.items.length} queued)` };
+  }
+
+  function watch() {
+    if (queue.observer) return;
+    queue.observer = new MutationObserver(() => check());
+    queue.observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'aria-label', 'disabled'] });
+    queue.poll = setInterval(check, queue.opts?.pollMs ?? 250); // throttled to 1/s in a hidden tab; the observer is not
+    check();
+  }
+
+  function unwatch() {
+    queue.observer?.disconnect();
+    queue.observer = null;
+    clearInterval(queue.poll);
+    queue.poll = null;
+  }
+
+  function check() {
+    if (queue.flushing || queue.items.length === 0) return;
+    const opts = queue.opts ?? {};
+    if (isBusy(queue.sel)) {
+      const maxWait = opts.maxWaitMs ?? 180000;
+      if (Date.now() - queue.startedAt > maxWait) {
+        const items = queue.items.splice(0);
+        queue.startedAt = 0;
+        unwatch();
+        const waited = maxWait >= 60000 ? `${Math.round(maxWait / 60000)} min` : `${Math.round(maxWait / 1000)} s`;
+        opts.onDiag?.(`gave up on ${items.length} queued after ${waited}`);
+        opts.onResult?.(items.map((i) => i.id), { status: 'error', detail: `still answering after ${waited}` });
+      }
+      return;
+    }
+    flush();
+  }
+
+  async function flush() {
+    queue.flushing = true;
+    unwatch();
+    const opts = queue.opts ?? {};
+    await sleep(opts.settleMs ?? 300); // let the page switch the stop button back
+    if (isBusy(queue.sel)) {
+      queue.flushing = false;
+      watch();
+      return;
+    }
+    const items = queue.items.splice(0);
+    const waited = Date.now() - queue.startedAt;
+    queue.startedAt = 0;
+    const merged = items.map((i) => i.text).join('\n\n');
+    const ack = await deliver(queue.sel, merged, opts);
+    queue.flushing = false;
+    if (ack.status === 'busy') {
+      queue.items.unshift(...items);
+      queue.startedAt = Date.now() - waited;
+      watch();
+      return;
+    }
+    opts.onDiag?.(`flushed ${items.length} queued after ${Math.round(waited / 1000)} s: ${ack.status}`);
+    opts.onResult?.(items.map((i) => i.id), ack);
+    if (queue.items.length > 0) watch(); // more arrived while submitting
+  }
+
   /** Options "Test": inserts text without submitting and reports which selectors matched. */
   async function test(sel, text) {
     const report = diagnose(sel);
@@ -261,5 +350,5 @@
     return out;
   }
 
-  globalThis.CaptionRelayWebChat = { deliver, test, diagnose, isBusy, find, norm };
+  globalThis.CaptionRelayWebChat = { deliver, deliverOrQueue, queueLength: () => queue.items.length, test, diagnose, isBusy, find, norm };
 })();

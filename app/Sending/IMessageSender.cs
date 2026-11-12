@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,14 +24,18 @@ namespace CaptionRelay.Sending
 
     public sealed class SendOutcome
     {
-        public SendOutcome(SendStatus status, string? detail = null, string? provider = null)
+        public SendOutcome(SendStatus status, string? detail = null, string? provider = null, string? id = null)
         {
             Status = status;
             Detail = detail;
             Provider = provider;
+            Id = id;
         }
 
         public SendStatus Status { get; }
+
+        /// <summary>Id of the send message; a later <see cref="IMessageSender.DeliveryResult"/> for a queued send uses it.</summary>
+        public string? Id { get; }
 
         public string? Detail { get; }
 
@@ -41,6 +46,12 @@ namespace CaptionRelay.Sending
     /// <summary>Delivers text to the browser extension (implemented by the WebSocket server in Phase 5).</summary>
     public interface IMessageSender
     {
+        /// <summary>
+        /// Final result of a send that was acked "queued" (submitted after the chat finished answering, or given up).
+        /// Raised on any thread with the send's id.
+        /// </summary>
+        event Action<string, SendOutcome>? DeliveryResult;
+
         bool IsConnected { get; }
 
         Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default);
@@ -49,6 +60,12 @@ namespace CaptionRelay.Sending
     /// <summary>Used until the WebSocket server exists: never connected.</summary>
     public sealed class NotConnectedSender : IMessageSender
     {
+        public event Action<string, SendOutcome>? DeliveryResult
+        {
+            add { }
+            remove { }
+        }
+
         public bool IsConnected => false;
 
         public Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default) =>

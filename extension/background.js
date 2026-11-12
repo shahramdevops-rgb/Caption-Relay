@@ -13,7 +13,8 @@ async function deliver(text, id) {
   const settings = await getSettings();
   const provider = getProvider(settings.provider);
   log(`send ${String(id).slice(0, 8)}: ${text.length} chars -> ${provider.id}`);
-  const ack = await provider.deliver(text, { id });
+  const onResult = (status, detail) => connection.sendResult(id, status, detail, provider.id);
+  const ack = await provider.deliver(text, { id, onResult });
   log(`ack ${String(id).slice(0, 8)}: ${ack.status}${ack.detail ? ' (' + ack.detail + ')' : ''}`);
   return { provider: provider.id, ...ack };
 }
@@ -79,6 +80,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   } else if (message?.type === 'reconnect') {
     connection.restart();
     sendResponse({ ok: true });
+  } else if (message?.type === 'captionrelay-result') {
+    // From a content script: queued sends were submitted (or given up) after the answer ended.
+    getSettings().then((s) => {
+      getProvider(s.provider).queueDone?.(_sender.tab?.id);
+      for (const id of message.ids ?? []) connection.sendResult(id, message.status, message.detail, s.provider);
+      log(`result for ${message.ids?.length ?? 0} queued send(s): ${message.status}${message.detail ? ' (' + message.detail + ')' : ''}`);
+    });
+    return false;
   } else if (message?.type === 'captionrelay-diag') {
     // From a content script: page diagnostics (no chat text).
     const line = `[tab ${_sender.tab?.id ?? '?'}] ${message.text}`;

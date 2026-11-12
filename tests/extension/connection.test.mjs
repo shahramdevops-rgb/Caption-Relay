@@ -184,6 +184,17 @@ test('sendLog sends a log message only while connected', async () => {
   assert.deepEqual(r.socket().sent.at(-1), { type: 'log', level: 'warn', text: 'buttons=[x]' });
 });
 
+test('sendResult reports the final result of a queued send', async () => {
+  const r = rig();
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.conn.sendResult('q1', 'sent', 'execCommand', 'gemini');
+  r.conn.sendResult('q2', 'busy-or-anything', 'still answering after 3 min', 'gemini');
+  assert.deepEqual(r.socket().sent.at(-2), { type: 'result', id: 'q1', status: 'sent', detail: 'execCommand', provider: 'gemini' });
+  assert.equal(r.socket().sent.at(-1).status, 'error');
+});
+
 test('unknown messages and invalid JSON are ignored', async () => {
   const r = rig();
   r.conn.start();

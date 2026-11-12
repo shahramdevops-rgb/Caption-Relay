@@ -32,12 +32,16 @@ namespace CaptionRelay.UI
 
         public static string Words(int count) => count == 1 ? "1 word pending" : $"{count} words pending";
 
+        /// <summary>"queued · 12 words pending" while a send waits for the chat to finish answering.</summary>
+        public static string WordsAndQueue(int pendingWords, int queued) =>
+            queued > 0 ? $"queued · {Words(pendingWords)}" : Words(pendingWords);
+
         /// <summary>The line read by screen readers / UI Automation (the window title).</summary>
-        public static string StatusLine(bool captionsOk, bool extensionOk, string provider, int pendingWords, string? flash)
+        public static string StatusLine(bool captionsOk, bool extensionOk, string provider, int pendingWords, string? flash, int queued = 0)
         {
             string c = captionsOk ? "Captions on" : "Captions off";
             string e = extensionOk ? provider + " connected" : provider + " not connected";
-            return $"{c} | {e} | {flash ?? Words(pendingWords)}";
+            return $"{c} | {e} | {flash ?? WordsAndQueue(pendingWords, queued)}";
         }
 
         public static string Tooltip(bool captionsOk, bool extensionOk, string provider, int pendingWords, string? error)

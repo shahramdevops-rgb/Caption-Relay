@@ -41,6 +41,12 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public void StatusLine_ShowsQueuedUntilDelivered()
+        {
+            Assert.Equal("Captions on | Gemini connected | queued · 2 words pending", IndicatorText.StatusLine(true, true, "Gemini", 2, null, 1));
+        }
+
+        [Fact]
         public void Tooltip_NeverOver127Chars()
         {
             string t = IndicatorText.Tooltip(true, false, "Gemini", 12345, new string('x', 200));

@@ -66,6 +66,9 @@ namespace CaptionRelay.Relay
         /// <summary>Raised (any thread) when IsConnected may have changed.</summary>
         public event Action<bool>? ConnectionChanged;
 
+        /// <inheritdoc />
+        public event Action<string, SendOutcome>? DeliveryResult;
+
         public bool IsConnected
         {
             get
@@ -167,7 +170,8 @@ namespace CaptionRelay.Relay
                 return new SendOutcome(SendStatus.NoResponse);
             }
 
-            return await pending.Completion.Task.ConfigureAwait(false);
+            SendOutcome outcome = await pending.Completion.Task.ConfigureAwait(false);
+            return new SendOutcome(outcome.Status, outcome.Detail, outcome.Provider, id);
         }
 
         public void Dispose()
@@ -337,6 +341,9 @@ namespace CaptionRelay.Relay
                     case "log":
                         OnExtensionLog(conn, m);
                         break;
+                    case "result":
+                        OnResult(conn, m);
+                        break;
                     default:
                         break; // forward compatible: unknown types are ignored
                 }
@@ -363,6 +370,25 @@ namespace CaptionRelay.Relay
                 _ => new SendOutcome(SendStatus.Error, $"unknown ack status '{status}'", provider),
             };
             pending.Completion.TrySetResult(outcome);
+        }
+
+        /// <summary>Final result of a send that was acked "queued".</summary>
+        private void OnResult(Connection conn, JsonElement m)
+        {
+            string id = Str(m, "id") ?? "";
+            string status = Str(m, "status") ?? "";
+            SendOutcome outcome = status == "sent"
+                ? new SendOutcome(SendStatus.Sent, Str(m, "detail"), Str(m, "provider"), id)
+                : new SendOutcome(SendStatus.Error, Str(m, "detail") ?? $"status '{status}'", Str(m, "provider"), id);
+            Log.Info($"Relay: result from {conn} for queued send {(id.Length >= 8 ? id[..8] : id)}: {status}.");
+            try
+            {
+                DeliveryResult?.Invoke(id, outcome);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("DeliveryResult handler failed", ex);
+            }
         }
 
         /// <summary>Diagnostics from the extension (page structure, timings; never chat text) go to the app log.</summary>
