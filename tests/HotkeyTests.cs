@@ -42,6 +42,14 @@ namespace CaptionRelay.Tests
 
             public Keyboard Tap(int vk) => Down(vk).Up(vk);
 
+            /// <summary>The key is released but the hook never sees the key-up event.</summary>
+            public Keyboard MissedUp(int vk)
+            {
+                _down.Remove(vk);
+                AddGeneric(vk, false);
+                return this;
+            }
+
             public string Result => Actions.Count == 0 ? "none" : string.Join(",", Actions);
 
             private bool IsPressed(int vk) => _down.Contains(vk);
@@ -139,6 +147,23 @@ namespace CaptionRelay.Tests
         {
             var kb = new Keyboard().Down(LCtrl).Down(LShift).Up(LShift).Down(LShift).Up(LShift).Up(LCtrl);
             Assert.Equal("Send", kb.Result);
+        }
+
+        [Fact]
+        public void MissedKeyUp_DoesNotSwallowTheNextCtrlShift()
+        {
+            // Ctrl+T in some app, but Ctrl's key-up never reaches the hook (found in the Phase 11 real test).
+            var kb = new Keyboard().Down(LCtrl).Tap(T).MissedUp(LCtrl);
+            kb.Down(LCtrl).Down(LShift).Up(LShift).Up(LCtrl);
+            Assert.Equal("Send", kb.Result);
+        }
+
+        [Fact]
+        public void MissedKeyUp_DuringCtrlShift_NextPressStillSendsOnce()
+        {
+            var kb = new Keyboard().Down(LCtrl).Down(LShift).Up(LShift).MissedUp(LCtrl); // fired once
+            kb.Down(LCtrl).Down(LShift).Up(LShift).Up(LCtrl);
+            Assert.Equal("Send,Send", kb.Result);
         }
 
         [Fact]

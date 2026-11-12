@@ -64,6 +64,19 @@ namespace CaptionRelay
             Log.Info($"Config {loaded.Outcome}: port {config.Port}, token fingerprint {TokenGenerator.Fingerprint(config.Token)}, " +
                      $"sendKey {config.SendKey}, skipKey {config.SkipKey}, pollMs {config.PollMs}, minSendChars {config.MinSendChars}");
 
+            if (config.StartWithWindows && Environment.ProcessPath != null)
+            {
+                // Keep the startup entry pointing at this exe (the folder may have moved).
+                try
+                {
+                    new StartupRegistration().Set(true, Environment.ProcessPath);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("Could not refresh the startup entry", ex);
+                }
+            }
+
             int deleted = SessionWriter.DeleteOld(AppPaths.SessionsDir, config.SessionRetentionDays);
             if (deleted > 0)
             {

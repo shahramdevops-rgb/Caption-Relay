@@ -3,6 +3,7 @@
 #   send         Ctrl+Shift press/release
 #   skip         F9
 #   wait:<ms>    pause
+#   check        print whether the test window still has the focus
 # Windows PowerShell 5.1, ASCII only.
 param([Parameter(Mandatory = $true)][string]$Steps, [int]$GapMs = 300)
 
@@ -88,7 +89,9 @@ try {
             'say'  { Step "say: $arg" { $synth.Speak($arg) } }
             'send' { Step 'send (Ctrl+Shift)' { Down LCtrl; Down LShift; Up LShift; Up LCtrl } }
             'skip' { Step 'skip (F9)' { Tap F9 } }
+            'ctrlshiftt' { Step 'Ctrl+Shift+T (must not send)' { Down LCtrl; Down LShift; Tap T; Up LShift; Up LCtrl } }
             'wait' { Start-Sleep -Milliseconds ([int]$arg) }
+            'check' { [System.Windows.Forms.Application]::DoEvents(); (Get-Date).ToString('HH:mm:ss.fff') + '  focus still on the test window: ' + ([KT]::GetForegroundWindow() -eq $form.Handle) }
         }
     }
 }

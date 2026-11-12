@@ -27,6 +27,8 @@ namespace CaptionRelay.UI
         private readonly ToolStripMenuItem _showItem;
         private readonly ToolStripMenuItem _soundItem;
         private readonly ToolStripMenuItem _hideLcItem;
+        private readonly ToolStripMenuItem _startupItem;
+        private readonly StartupRegistration _startup = new StartupRegistration();
         private readonly IndicatorForm _indicator;
         private readonly Sounds _sounds = new Sounds();
         private readonly Timer _timer = new Timer { Interval = 250 };
@@ -53,6 +55,7 @@ namespace CaptionRelay.UI
             _menu.Items.Add(_showItem);
             _menu.Items.Add(_soundItem);
             _menu.Items.Add(_hideLcItem);
+            _menu.Items.Add(_startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows()) { Checked = config.StartWithWindows });
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Open sessions folder", null, (_, _) => OpenSessions()));
             _menu.Items.Add(new ToolStripMenuItem("Copy token (for the extension)", null, (_, _) => CopyToken()));
@@ -265,6 +268,26 @@ namespace CaptionRelay.UI
 
             SaveConfig();
             Log.Info($"Hide Live Captions window: {_config.HideLiveCaptions}.");
+        }
+
+        private void ToggleStartWithWindows()
+        {
+            bool enable = !_config.StartWithWindows;
+            string exe = Environment.ProcessPath ?? Application.ExecutablePath;
+            try
+            {
+                _startup.Set(enable, exe);
+                _config.StartWithWindows = enable;
+                _startupItem.Checked = enable;
+                SaveConfig();
+                Log.Info($"Start with Windows: {enable}.");
+                _indicator.Flash(FeedbackKind.Info, enable ? "Starts with Windows" : "Won't start with Windows");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Changing Start with Windows failed", ex);
+                _indicator.Flash(FeedbackKind.Error, "Could not change startup setting");
+            }
         }
 
         private void OpenSessions()

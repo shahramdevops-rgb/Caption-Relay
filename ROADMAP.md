@@ -99,7 +99,20 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       frozen nor discarded; Gemini keeps generating in a hidden tab and the queue flushed there (29 s); the tab stayed
       usable after ~4 h in the background; no Gemini tab → background tab opened and delivered (Phase 8).
       Not testable here: a real Memory Saver discard / freeze (prevented by autoDiscardable, handled by reload).
-- [ ] **Phase 11 — Wrap-up**: README, recommended Live Captions settings, verify every "Done when" item.
+- [x] **Phase 11 — Wrap-up**: full README (build, extension install, token, Live Captions settings, use, config,
+      troubleshooting), "Start with Windows" option, single-file publish in publish\ + desktop shortcut. Every
+      "Done when" item verified with the published app on real Gemini:
+      1. ~4 min of speech, no key pressed, then one Ctrl+Shift → one 623-word message (script 622 words, 97.4% in
+         order — the rest are Live Captions' own recognition errors), 80 ms from the hotkey; nothing missing (a 3-word
+         "ok record" duplicate at the very start from Live Captions' first draft).
+      2. Focus stayed on the window in use during every send.
+      3. F9 skipped; Ctrl+Shift with nothing new sent nothing; Ctrl+Shift+T sent nothing.
+      4. Sent while Gemini answered → queued → submitted automatically 27 s later.
+      5. Extension off → "Gemini not connected", text kept; back on → kept text sent with the new text.
+      6. App restart → reconnected 0.9 s after the server was up; Chrome closed and reopened → reconnected by itself.
+      Also: a hung page (no ping answer) → tab reloaded and the text delivered in the same conversation (9 s); the
+      main Chrome (Gemini Pro) delivered in 91 ms with busy detection working. Bug found and fixed: a missed
+      modifier key-up made the next Ctrl+Shift be ignored once.
 
 - [ ] **Phase 12 — Learning guide (PDF)**: a clean, illustrated PDF that teaches how the project was designed —
       ideas, architecture, layers, data flow, protocol, testing strategy and the decisions behind them, with

@@ -57,6 +57,15 @@ namespace CaptionRelay.Input
                 HotkeyAction action = HotkeyAction.None;
                 if (isDown)
                 {
+                    // A new press begins while neither modifier is physically held: start fresh. Without this, a
+                    // missed key-up (released while another window or the secure desktop had the keyboard) left the
+                    // old press "spoiled" and silently swallowed the next Ctrl+Shift.
+                    if (!isPressed(VK_CONTROL) && !isPressed(VK_SHIFT) &&
+                        !isPressed(VK_LCONTROL) && !isPressed(VK_RCONTROL) && !isPressed(VK_LSHIFT) && !isPressed(VK_RSHIFT))
+                    {
+                        _armed = _spoiled = _fired = false;
+                    }
+
                     if (ctrl && shift && !_spoiled && !altOrWin)
                     {
                         _armed = true;
