@@ -114,9 +114,14 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       main Chrome (Gemini Pro) delivered in 91 ms with busy detection working. Bug found and fixed: a missed
       modifier key-up made the next Ctrl+Shift be ignored once.
 
-- [ ] **Phase 12 — Learning guide (PDF)**: a clean, illustrated PDF that teaches how the project was designed —
+- [x] **Phase 12 — Learning guide (PDF)**: a clean, illustrated PDF that teaches how the project was designed —
       ideas, architecture, layers, data flow, protocol, testing strategy and the decisions behind them, with
-      schematic diagrams (not a code walkthrough).
+      schematic diagrams (not a code walkthrough). Result: `docs/CaptionRelay-course.pdf` (44 pages, 17 chapters,
+      26 diagrams). Persian text with English terms; every chapter ends with an English "In an interview" summary
+      and interview questions. Sources in `docs/course/` (HTML chapters, SVG diagrams, one stylesheet);
+      `python docs/course/build.py` prints it with headless Edge, fills the table of contents with page numbers and
+      first runs an RTL check (every Persian line starts with a Persian word; no English on both sides of a quote,
+      bracket, dash or Persian comma; no English inside «»).
 
 ## Later (after the Gemini version is done)
 

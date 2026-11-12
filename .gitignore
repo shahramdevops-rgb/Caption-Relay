@@ -11,3 +11,7 @@ publish/
 config.json
 sessions/
 logs/
+
+# Course build preview (python docs/course/build.py --html)
+docs/course/course-preview.html
+__pycache__/

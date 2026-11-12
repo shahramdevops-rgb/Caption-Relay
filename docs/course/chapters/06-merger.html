@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch5" data-num="5" data-fa="ادغام رونوشت: TranscriptMerger" data-en="TranscriptMerger: one transcript from a rolling window">
+  <div class="chapter-head">
+    <div class="chapter-num">5</div>
+    <div>
+      <h1>ادغام رونوشت: TranscriptMerger</h1>
+      <div class="sub">One growing transcript from a rolling, self-correcting window</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    این مهم‌ترین قطعه‌ی سیستم است. ورودی‌اش دو چیز است: <b>رونوشت</b> فعلی جلسه (یک رشته‌ی بلند و رو به رشد) و
+    <b>پنجره</b>‌ی تازه‌ای که از Live Captions خوانده شده. خروجی‌اش رونوشت جدید است، به‌اضافه‌ی یک «نقشه» که می‌گوید هر
+    موقعیت در رونوشت قدیم حالا کجای رونوشت جدید است.
+  </p>
+
+  <h2>ایده: پنجره را در انتهای رونوشت پیدا کن <span class="en-tag">Locate, align, replace</span></h2>
+  <p>
+    پنجره همیشه با کلمه‌هایی شروع می‌شود که رونوشت قبلاً دیده است (مگر اینکه گفت‌وگوی تازه‌ای شروع شده باشد). پس کافی
+    است جای شروع پنجره را در انتهای رونوشت پیدا کنیم، کلمه به کلمه جلو برویم تا مطمئن شویم واقعاً همان متن است، و از آن
+    نقطه به بعد رونوشت را با پنجره عوض کنیم. چون پنجره جدیدتر است، اصلاح‌های Live Captions خودبه‌خود اعمال می‌شوند.
+  </p>
+  <figure><img class="dia" src="../diagrams/merger-align.svg" alt="merger-align"><figcaption><b>شکل ۵-۱</b> — کلید (چند کلمه‌ی اول پنجره) در انتهای رونوشت پیدا می‌شود؛ هم‌ترازی روی کلمه‌های بازنویسی‌شده دوباره هماهنگ می‌شود؛ از نقطه‌ی پیدا شدن به بعد، پنجره جایگزین می‌شود.</figcaption></figure>
+
+  <h3>چهار قدم الگوریتم</h3>
+  <ol>
+    <li><b>کلمه‌سازی.</b> هر دنباله‌ی حرف و عدد یک کلمه است، با حروف کوچک، بدون علامت‌گذاری؛ آپاستروف داخل کلمه حذف می‌شود.
+      پس <code>Don't,</code> و <code>dont</code> برابرند. جای هر کلمه در متن اصلی هم نگه داشته می‌شود.</li>
+    <li><b>کلید.</b> حداکثر ۸ کلمه‌ی اول پنجره (و نه بیشتر از نصف پنجره، تا کلید از دُم در حال تغییر دور بماند). اگر کلمه‌ی
+      اول خودش بازنویسی شده باشد، جست‌وجو از کلمه‌ی دوم تا پنجم پنجره هم تکرار می‌شود. فقط ۳۰۰۰ کاراکتر آخر رونوشت گشته
+      می‌شود؛ هزینه ثابت می‌ماند، هر قدر هم جلسه طولانی شود.</li>
+    <li><b>هم‌ترازی.</b> از هر جای پیدا شده، دو دنباله کلمه به کلمه مقایسه می‌شوند. در اولین اختلاف، کوچک‌ترین «پرش» پیدا
+      می‌شود (حداکثر ۱۲ کلمه از هر طرف) که بعدش <b>دو</b> کلمه‌ی پشت سر هم دوباره برابر باشند؛ این همان جذب
+      بازنویسی‌هاست.</li>
+    <li><b>انتخاب و اعمال.</b> بهترین هم‌ترازی قابل‌قبول انتخاب و اعمال می‌شود؛ اگر هیچ‌کدام قابل‌قبول نبود، قانون‌های ایمنی
+      تصمیم می‌گیرند (شکل ۵-۲).</li>
+  </ol>
+
+  <figure><img class="dia" src="../diagrams/merger-decision.svg" alt="merger-decision"><figcaption><b>شکل ۵-۲</b> — درخت تصمیم یک ادغام و چهار نتیجه‌ی ممکن. کادر زرد: شرط «قابل‌قبول» بودن یک هم‌ترازی.</figcaption></figure>
+
+  <div class="box rule">
+    <div class="box-title">قانون ایمنی: گم شدن هرگز، تکرار گاهی</div>
+    <p>
+      هر جا الگوریتم مطمئن نیست، طرف «تکرار» را انتخاب می‌کند. هم‌ترازی‌ای که فقط با چند کلمه‌ی رایج جور شده، حق ندارد
+      بیش از یک کلمه از رونوشت را دور بریزد. پنجره‌ای که کاملاً داخل رونوشت است (snapshot کهنه) هیچ چیزی را تغییر نمی‌دهد.
+      همپوشانی‌ای که نمی‌شود آن را تا انتها هم‌تراز کرد، رونوشت را دست نمی‌زند و فقط انتهای جدید پنجره را اضافه می‌کند.
+      نتیجه‌ی بدترین حالت، چند کلمه‌ی تکراری است؛ نه یک جمله‌ی گم‌شده.
+    </p>
+  </div>
+
+  <h2>نقشه‌ی موقعیت‌ها: MapIndex <span class="en-tag">Keeping positions valid</span></h2>
+  <p>
+    بقیه‌ی سیستم با موقعیت‌های عددی در رونوشت کار می‌کند: <code>sentIndex</code> (تا کجا فرستاده شده)، جای
+    برچسب‌های فایل جلسه، و جای برش هر ارسال در حال انجام. وقتی ادغام متن را عوض می‌کند، همه‌ی این عددها باید جابه‌جا
+    شوند. نتیجه‌ی هر ادغام جفت‌های «انتهای کلمه در متن قدیم ← انتهای همان کلمه در متن جدید» را نگه می‌دارد و
+    <code>MapIndex</code> هر موقعیت قدیمی را با آن ترجمه می‌کند.
+  </p>
+  <figure><img class="dia" src="../diagrams/mapindex.svg" alt="mapindex"><figcaption><b>شکل ۵-۳</b> — کلمه‌ی جورشده جایش را نگه می‌دارد؛ موقعیتی که وسط کلمه‌های بازنویسی‌شده بود، به عقب و به انتهای آخرین کلمه‌ی جورشده می‌رود.</figcaption></figure>
+  <p>
+    یک ظرافت کوچک: اگر بعد از کلمه‌ی جورشده علامتی مثل نقطه بوده، موقعیت بعد از آن علامت می‌ماند تا جمله‌ی بعدی با
+    <code>.</code> شروع نشود.
+  </p>
+
+  <h2>مثال‌های واقعی که تست شده‌اند <span class="en-tag">Tested cases</span></h2>
+  <table>
+    <tr><th style="width:34%">حالت</th><th>رفتار</th></tr>
+    <tr><td>رشد عادی پنجره</td><td>نتیجه‌ی <code>Replaced</code>؛ فقط کلمه‌های تازه اضافه می‌شوند</td></tr>
+    <tr><td>اسکرول شدن خط‌های بالا</td><td>کلید از اول پنجره در وسط رونوشت پیدا می‌شود؛ متن قدیمی دست نمی‌خورد</td></tr>
+    <tr><td>کلمه‌ی آخر بازنویسی شد</td><td>هم‌ترازی آن را جذب می‌کند و نسخه‌ی تازه جایگزین می‌شود</td></tr>
+    <tr><td>چند کلمه یکی شد</td><td>عبارت <code>I I I I</code> به <code>II</code> و <code>C sharp</code> به <code>C#</code>؛ حداکثر ۳ کلمه اجازه‌ی «ادغام شدن» دارند</td></tr>
+    <tr><td>عبارت‌های تکراری در گفتار</td><td>جای درست با «بیشترین تطابق، سپس کمترین دورریز، سپس جای بعدتر» انتخاب می‌شود</td></tr>
+    <tr><td>پاک شدن یا راه‌اندازی دوباره‌ی Live Captions</td><td>هیچ همپوشانی‌ای نیست؛ نتیجه‌ی <code>Appended</code> و کل پنجره اضافه می‌شود</td></tr>
+    <tr><td>همان snapshot دوباره</td><td>نتیجه‌ی <code>Unchanged</code> بدون هیچ کاری</td></tr>
+  </table>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده</div>
+    <p>۲۸ تست واحد برای حالت‌های بالا، و بازپخش دو ضبط واقعی (چهار و ده دقیقه) از Live Captions. در ضبط ده‌دقیقه‌ای با ۱۱
+      اسکرول، هر کلمه‌ای که Live Captions نشان داده بود در رونوشت ماند، بدون تکرار.</p>
+  </div>
+
+  <div class="box rejected">
+    <div class="box-title">گزینه‌های ردشده</div>
+    <ul>
+      <li>مقایسه‌ی کاراکتری (مثل diff یا «بلندترین پیشوند مشترک») — یک نقطه یا حرف بزرگ اضافه، کل تطابق را می‌شکند.</li>
+      <li>الگوریتم کامل LCS روی کل رونوشت — هزینه با طول جلسه بالا می‌رود و جای «جدید» را هم مشخص نمی‌کند.</li>
+      <li>«آخرین N کلمه را بفرست» — با هر اسکرول یا بازنویسی، یا گم می‌شود یا تکرار.</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The merger turns successive snapshots of a rolling window into one transcript. It normalizes words (lower case, no
+      punctuation), takes the window's first few words as a key, finds it in the last 3,000 characters of the
+      transcript, then aligns word by word, resynchronizing over small rewrites. Everything from the match on is replaced
+      by the window, so corrections win. Safety rules decide the uncertain cases and always prefer duplicating a few
+      words to losing any. Each merge also returns a position map, so sentIndex and every other pointer stay valid.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why compare words and not characters?</dt>
+      <dd>Live Captions keeps changing punctuation and capitals. Normalized words are stable, so the alignment survives
+        "experience." becoming "experience,".</dd>
+      <dt>What is the complexity?</dt>
+      <dd>Bounded: only the transcript tail is searched, keys are at most 8 words, and resync looks at most 12 words
+        ahead. Cost does not grow with the length of the meeting.</dd>
+      <dt>What happens when the algorithm is not sure?</dt>
+      <dd>It falls back to appending, which can duplicate a few words but never drops text. That trade-off was an
+        explicit requirement.</dd>
+      <dt>Why do you need MapIndex?</dt>
+      <dd>Other parts hold character positions into the transcript. A rewrite shifts text, so every position is
+        translated through the merge; positions inside rewritten words move back so the new wording is sent again.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

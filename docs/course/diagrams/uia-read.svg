@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 236">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .t { font: 700 10.5px 'Segoe UI', sans-serif; fill: #1a202c; }
+    .s { font: 9.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .m { font: 9px 'Cascadia Mono', Consolas, monospace; fill: #6b46c1; }
+    .h { font: 700 9px 'Segoe UI', sans-serif; letter-spacing: 1px; fill: #718096; }
+    .c { text-anchor: middle; }
+  </style>
+
+  <text class="h" x="16" y="16">FIND ONCE (RETRY AT MOST EVERY 1 s)</text>
+  <!-- tree -->
+  <rect x="16" y="26" width="236" height="36" rx="7" fill="#f7fafc" stroke="#a0aec0"/>
+  <text class="t" x="28" y="42">Desktop</text><text class="m" x="28" y="55">AutomationElement.RootElement</text>
+  <rect x="46" y="84" width="270" height="36" rx="7" fill="#fff3ea" stroke="#c05621"/>
+  <text class="t" x="58" y="100">Live Captions window</text><text class="m" x="58" y="113">Children where ProcessId = LiveCaptions.exe</text>
+  <rect x="76" y="142" width="270" height="36" rx="7" fill="#fff3ea" stroke="#c05621"/>
+  <text class="t" x="88" y="158">Caption text block</text><text class="m" x="88" y="171">Descendants: AutomationId = CaptionsTextBlock</text>
+  <rect x="106" y="198" width="240" height="30" rx="15" fill="#c05621"/>
+  <text x="226" y="217" class="c" style="font: 600 10px 'Segoe UI'; fill: #fff">.Name = all visible caption text</text>
+  <g stroke="#a0aec0" stroke-width="1.3" fill="none">
+    <path d="M30,62 V102 H45"/><path d="M60,120 V160 H75"/><path d="M90,178 V213 H105"/>
+  </g>
+
+  <!-- right: every poll -->
+  <text class="h" x="392" y="16">EVERY 120 ms</text>
+  <rect x="392" y="26" width="352" height="36" rx="7" fill="#ebf4ff" stroke="#2b6cb0"/>
+  <text class="t" x="404" y="42">Read() → Normalize</text>
+  <text class="s" x="404" y="55">read cached element's Name, collapse whitespace</text>
+
+  <g stroke="#4a5568" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+    <path d="M450,62 V86"/><path d="M568,62 V86"/><path d="M686,62 V86"/>
+  </g>
+  <rect x="392" y="88" width="112" height="62" rx="7" fill="#fff5f5" stroke="#fc8181"/>
+  <text class="t c" x="448" y="106">null</text>
+  <text class="s c" x="448" y="121">not available</text>
+  <text class="s c" x="448" y="136">(closed / not found)</text>
+  <rect x="512" y="88" width="112" height="62" rx="7" fill="#f7fafc" stroke="#a0aec0"/>
+  <text class="t c" x="568" y="106">""</text>
+  <text class="s c" x="568" y="121">connected,</text>
+  <text class="s c" x="568" y="136">nothing said yet</text>
+  <rect x="632" y="88" width="112" height="62" rx="7" fill="#eaf7ef" stroke="#68d391"/>
+  <text class="t c" x="688" y="106">"text…"</text>
+  <text class="s c" x="688" y="121">the current</text>
+  <text class="s c" x="688" y="136">window snapshot</text>
+
+  <g stroke="#4a5568" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+    <path d="M448,150 V172"/><path d="M688,150 V172"/>
+  </g>
+  <rect x="392" y="174" width="112" height="54" rx="7" fill="#fff" stroke="#fc8181" stroke-dasharray="4 3"/>
+  <text class="s c" x="448" y="194">start LiveCaptions.exe</text>
+  <text class="s c" x="448" y="208">every 5 s; indicator</text>
+  <text class="s c" x="448" y="221">dot turns red</text>
+  <rect x="632" y="174" width="112" height="54" rx="7" fill="#fff" stroke="#2b6cb0"/>
+  <text class="t c" x="688" y="196" style="fill:#1a4971">TranscriptMerger</text>
+  <text class="s c" x="688" y="211">.Merge(snapshot)</text>
+  <text class="s c" x="568" y="190">placeholder</text>
+  <text class="s c" x="568" y="203">"Ready to show</text>
+  <text class="s c" x="568" y="216">live captions" → ""</text>
+</svg>

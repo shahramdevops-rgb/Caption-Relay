@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch13" data-num="13" data-fa="وقتی چت مشغول جواب دادن است" data-en="Sending while the chat is still answering">
+  <div class="chapter-head">
+    <div class="chapter-num">13</div>
+    <div>
+      <h1>وقتی چت مشغول جواب دادن است</h1>
+      <div class="sub">The busy queue — queue, merge, submit when the answer ends</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    وسط یک جلسه، طبیعی است که کاربر دوباره <code>Ctrl+Shift</code> را بزند در حالی که Gemini هنوز جواب قبلی را می‌نویسد. در
+    این حالت دکمه‌ی ارسال به دکمه‌ی <b>توقف</b> تبدیل شده؛ کلیک روی آن جواب در حال نوشتن را قطع می‌کند. پس افزونه
+    نباید فوراً ارسال کند، ولی متن هم نباید گم شود.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/busy-queue.svg" alt="busy-queue"><figcaption><b>شکل ۱۳-۱</b> — دو ارسال وسط یک جواب طولانی: هر دو در صف صفحه می‌مانند، با یک خط خالی بین‌شان یکی می‌شوند، و درست بعد از تمام شدن جواب به‌عنوان یک پیام ارسال می‌شوند.</figcaption></figure>
+
+  <h2>چهار تصمیم <span class="en-tag">Design decisions</span></h2>
+  <ol>
+    <li><b>صف داخل صفحه است، نه در اپ.</b> فقط content script می‌بیند چت کی آزاد می‌شود. اپ فقط <code>queued</code> می‌شنود و
+      منتظر پیام <code>result</code> می‌ماند؛ ticket تا آن موقع نه قطعی است نه بازگشته.</li>
+    <li><b>همه در یک پیام.</b> چند متن در صف با یک خط خالی به هم می‌چسبند و یک پیام می‌شوند. اگر جداگانه می‌رفتند، Gemini
+      به اولی جواب می‌داد، دومی دوباره در صف می‌ماند، و کاربر چند جواب نیمه‌مرتبط می‌گرفت.</li>
+    <li><b>دکمه‌ی توقف هرگز زده نمی‌شود.</b> جواب در حال نوشتن مال کاربر است؛ قطع کردنش بدتر از چند ثانیه صبر است.</li>
+    <li><b>همان تب.</b> تا وقتی تبی متن در صف دارد، ارسال‌های بعدی هم به همان تب می‌روند، حتی اگر کاربر در این فاصله تب
+      Gemini دیگری را نگاه کرده باشد. این قانون بعد از یک باگ واقعی در فاز ۹ اضافه شد.</li>
+  </ol>
+
+  <div class="box why">
+    <div class="box-title">چرا هم MutationObserver و هم poll؟</div>
+    <p>
+      ناظر DOM (<code>MutationObserver</code>) به محض اینکه دکمه‌ی توقف ناپدید شود خبر می‌دهد و در تب پنهان هم کند نمی‌شود
+      (فصل ۱۴). poll هر ۲۵۰ میلی‌ثانیه فقط یک تور ایمنی است، برای وقتی که تغییری بدون رویداد DOM اتفاق بیفتد. بعد از تمام شدن
+      جواب، ۳۰۰ میلی‌ثانیه صبر می‌شود و دوباره بررسی می‌شود، چون صفحه گاهی لحظه‌ای بین دو حالت چشمک می‌زند.
+    </p>
+  </div>
+
+  <div class="cols">
+    <div class="box rule">
+      <div class="box-title">حد زمانی</div>
+      <p>اگر جواب بعد از ۳ دقیقه هنوز تمام نشده باشد، صف رها می‌شود و برای هر شناسه <code>result</code> با خطا فرستاده می‌شود. اپ هم
+        مستقلاً بعد از ۲۰۰ ثانیه بدون نتیجه، ticket را برمی‌گرداند.</p>
+    </div>
+    <div class="box rule">
+      <div class="box-title">مسابقه‌ی لحظه‌ی آخر</div>
+      <p>اگر چت درست در لحظه‌ی ارسال مشغول شود، تحویل <code>busy</code> برمی‌گرداند و متن به جای خطا به صف می‌رود؛ در flush هم همین‌طور.</p>
+    </div>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده روی Gemini واقعی</div>
+    <ul>
+      <li>متنی که وسط یک جواب ۳۸۰۰ کلمه‌ای فرستاده شد، ۳۳ ثانیه بعد خودکار ارسال شد؛ جواب کامل ماند.</li>
+      <li>دو متن وسط یک جواب، در همان تب صف شدند و به شکل یک پیام رفتند؛ فایل جلسه برای هر دو <code>[SENT …] (queued)</code> دارد.</li>
+      <li>در تست پایانی فاز ۱۱: صف و ارسال خودکار ۲۷ ثانیه بعد.</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>While the chat is still answering, the send button becomes a stop button, so delivering immediately would abort the
+      answer. The content script queues the text and acks "queued"; it watches the page with a MutationObserver plus a
+      slow poll, and when the answer ends it merges all queued texts into one message and submits it, then reports a
+      result for every id. The app keeps those tickets open until the result arrives, so nothing is lost even if the queue
+      is given up after three minutes.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why merge queued texts?</dt>
+      <dd>One message gets one coherent answer. Separate messages would trigger several partial answers and re-queue each
+        other.</dd>
+      <dt>Why does the queue live in the page and not in the app?</dt>
+      <dd>Only the page knows when the chat is free. The app treats the send as pending and waits for a result message with a
+        timeout.</dd>
+      <dt>What bug did real testing find here?</dt>
+      <dd>A later send went to another Gemini tab the user was looking at, splitting the conversation. Now a tab holding queued
+        text stays the target until its queue is flushed.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

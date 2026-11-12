@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 196">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#718096"/>
+    </marker>
+  </defs>
+  <style>
+    .h { font: 700 11px 'Segoe UI', sans-serif; }
+    .c { font: 10px 'Segoe UI', sans-serif; text-anchor: middle; fill: #2d3748; }
+    .note { font: 9.5px 'Segoe UI', sans-serif; fill: #718096; }
+  </style>
+
+  <text class="h" x="16" y="26" fill="#c53030">Without CaptionRelay</text>
+  <g>
+    <rect x="16" y="36" width="92" height="42" rx="8" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text class="c" x="62" y="54">read the</text><text class="c" x="62" y="67">captions</text>
+    <rect x="122" y="36" width="92" height="42" rx="8" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text class="c" x="168" y="54">select the</text><text class="c" x="168" y="67">new part</text>
+    <rect x="228" y="36" width="92" height="42" rx="8" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text class="c" x="274" y="61">Ctrl+C</text>
+    <rect x="334" y="36" width="92" height="42" rx="8" fill="#fff5f5" stroke="#feb2b2"/>
+    <text class="c" x="380" y="54">Alt+Tab</text><text class="c" x="380" y="67" style="fill:#c53030">to Chrome</text>
+    <rect x="440" y="36" width="92" height="42" rx="8" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text class="c" x="486" y="61">Ctrl+V</text>
+    <rect x="546" y="36" width="92" height="42" rx="8" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text class="c" x="592" y="61">Enter</text>
+    <rect x="652" y="36" width="92" height="42" rx="8" fill="#fff5f5" stroke="#feb2b2"/>
+    <text class="c" x="698" y="54">Alt+Tab</text><text class="c" x="698" y="67" style="fill:#c53030">back</text>
+  </g>
+  <g stroke="#718096" stroke-width="1.3" marker-end="url(#ar)">
+    <line x1="108" y1="57" x2="121" y2="57"/><line x1="214" y1="57" x2="227" y2="57"/>
+    <line x1="320" y1="57" x2="333" y2="57"/><line x1="426" y1="57" x2="439" y2="57"/>
+    <line x1="532" y1="57" x2="545" y2="57"/><line x1="638" y1="57" x2="651" y2="57"/>
+  </g>
+  <text class="note" x="16" y="96">7 actions, seconds of attention, focus leaves the meeting window twice — and text that scrolled away is simply gone.</text>
+
+  <line x1="16" y1="114" x2="744" y2="114" stroke="#e2e8f0"/>
+
+  <text class="h" x="16" y="138" fill="#2f855a">With CaptionRelay</text>
+  <rect x="16" y="148" width="120" height="40" rx="8" fill="#1f2937"/>
+  <text x="76" y="173" style="font: 700 12px 'Cascadia Mono', Consolas, monospace; fill: #fff; text-anchor: middle">Ctrl+Shift</text>
+  <line x1="136" y1="168" x2="160" y2="168" stroke="#718096" stroke-width="1.3" marker-end="url(#ar)"/>
+  <rect x="162" y="148" width="300" height="40" rx="8" fill="#eaf7ef" stroke="#68d391"/>
+  <text class="c" x="312" y="164">Gemini receives everything said since the last send</text>
+  <text class="c" x="312" y="178">and submits it — in about 80 ms</text>
+  <text class="note" x="478" y="164">focus never moves</text>
+  <text class="note" x="478" y="178">nothing is lost, even after Live Captions scrolls</text>
+</svg>

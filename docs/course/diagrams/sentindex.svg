@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 232">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c53030"/>
+    </marker>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="6" fill="#f7fafc"/><line x1="0" y1="0" x2="0" y2="6" stroke="#cbd5e0" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <style>
+    .lb { font: 700 9.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .s { font: 9.5px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .p { font: 600 9px 'Segoe UI', sans-serif; text-anchor: middle; }
+    .n { font: 9px 'Segoe UI', sans-serif; fill: #718096; }
+  </style>
+
+  <text class="lb" x="20" y="12">THE TRANSCRIPT (one string, all positions are character indexes)</text>
+  <rect x="20" y="48" width="110" height="30" fill="url(#hatch)" stroke="#cbd5e0"/>
+  <text class="s" x="75" y="67">on screen at start</text>
+  <rect x="130" y="48" width="200" height="30" fill="#edf2f7" stroke="#cbd5e0"/>
+  <text class="s" x="230" y="67">sent and confirmed</text>
+  <rect x="330" y="48" width="190" height="30" fill="#fffaeb" stroke="#d69e2e"/>
+  <text class="s" x="425" y="67">in flight (one ticket)</text>
+  <rect x="520" y="48" width="220" height="30" fill="#ebf4ff" stroke="#2b6cb0"/>
+  <text class="s" x="630" y="67">pending: new speech</text>
+
+  <g stroke-width="2">
+    <line x1="130" y1="30" x2="130" y2="82" stroke="#718096"/>
+    <line x1="330" y1="30" x2="330" y2="82" stroke="#b7791f"/>
+    <line x1="520" y1="30" x2="520" y2="82" stroke="#c53030"/>
+  </g>
+  <text class="p" x="130" y="27" style="fill:#718096">[SKIPPED]</text>
+  <text class="p" x="330" y="27" style="fill:#b7791f">ticket.Previous</text>
+  <text class="p" x="520" y="27" style="fill:#c53030">sentIndex = ticket.Cut</text>
+
+  <path d="M520,84 C500,112 360,112 334,88" fill="none" stroke="#c53030" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text class="n" x="425" y="122" style="text-anchor: middle; fill: #c53030">Restore: sentIndex = min(sentIndex, Previous)</text>
+  <text class="n" x="740" y="100" style="text-anchor: end">Confirm: the [SENT] marker becomes final</text>
+
+  <line x1="20" y1="136" x2="740" y2="136" stroke="#e2e8f0"/>
+
+  <text class="lb" x="20" y="156">THE SESSION FILE (written every 2 s)</text>
+  <rect x="20" y="168" width="310" height="30" fill="#eaf7ef" stroke="#68d391"/>
+  <text class="s" x="175" y="187">written, with [SKIPPED] / [SENT hh:mm:ss] markers</text>
+  <rect x="330" y="168" width="300" height="30" fill="#fff" stroke="#cbd5e0" stroke-dasharray="4 3"/>
+  <text class="s" x="480" y="187">waits until the send is confirmed or restored</text>
+  <rect x="630" y="168" width="110" height="30" fill="url(#hatch)" stroke="#cbd5e0"/>
+  <text class="s" x="685" y="187">last 40 words</text>
+  <line x1="330" y1="162" x2="330" y2="204" stroke="#b7791f" stroke-width="2.4"/>
+  <text class="n" x="20" y="218">the cut of an unconfirmed send blocks the file</text>
+  <text class="n" x="740" y="218" style="text-anchor: end">held back while speech goes on (may still be rewritten); all written after 5 s of silence</text>
+</svg>

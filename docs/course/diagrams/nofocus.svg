@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 262">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .t { font: 700 10px 'Segoe UI', sans-serif; fill: #1a202c; }
+    .s { font: 9px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .m { font: 8.5px 'Cascadia Mono', Consolas, monospace; fill: #6b46c1; }
+  </style>
+
+  <!-- screen -->
+  <rect x="12" y="10" width="400" height="244" rx="10" fill="#e2e8f0" stroke="#a0aec0"/>
+  <rect x="30" y="24" width="300" height="170" rx="7" fill="#fff" stroke="#2b6cb0" stroke-width="2"/>
+  <rect x="30" y="24" width="300" height="20" rx="7" fill="#2b6cb0"/>
+  <text x="40" y="38" style="font: 600 9.5px 'Segoe UI'; fill: #fff">Meeting / editor — has the keyboard focus</text>
+  <text class="s" x="44" y="72">the user keeps talking and typing here</text>
+  <rect x="44" y="84" width="200" height="12" rx="3" fill="#edf2f7"/>
+  <rect x="44" y="104" width="250" height="12" rx="3" fill="#edf2f7"/>
+  <rect x="44" y="124" width="170" height="12" rx="3" fill="#edf2f7"/>
+  <text x="44" y="176" style="font: 700 10px 'Segoe UI'; fill: #2f855a">focus never moves away from this window</text>
+
+  <!-- pill -->
+  <rect x="190" y="206" width="210" height="26" rx="13" fill="#1f2937"/>
+  <circle cx="206" cy="219" r="4" fill="#48bb78"/><text x="214" y="223" style="font: 9px 'Segoe UI'; fill: #fff">Captions</text>
+  <circle cx="262" cy="219" r="4" fill="#48bb78"/><text x="270" y="223" style="font: 9px 'Segoe UI'; fill: #fff">Gemini · 42 words pending</text>
+  <text class="s" x="190" y="248">indicator pill: click, drag, never activates</text>
+
+  <!-- taskbar -->
+  <rect x="12" y="236" width="170" height="18" rx="0" fill="#cbd5e0"/>
+  <rect x="24" y="239" width="60" height="12" rx="3" fill="#fff"/>
+  <text x="54" y="248" style="font: 7.5px 'Segoe UI'; fill: #4a5568; text-anchor: middle">Chrome (min)</text>
+
+  <!-- mechanisms -->
+  <g>
+    <rect x="440" y="10" width="308" height="244" rx="10" fill="#f7fafc" stroke="#cbd5e0"/>
+    <text x="452" y="28" style="font: 700 10px 'Segoe UI'; fill: #4a5568">how each part keeps the focus where it is</text>
+    <text class="t" x="452" y="50">Indicator window</text>
+    <text class="m" x="452" y="64">ShowWithoutActivation = true</text>
+    <text class="m" x="452" y="77">WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW</text>
+    <text class="m" x="452" y="90">WS_EX_TOPMOST in CreateParams</text>
+    <text class="m" x="452" y="103">WM_MOUSEACTIVATE → MA_NOACTIVATE</text>
+    <text class="s" x="452" y="117">no taskbar button, not in Alt+Tab, clicks don't activate</text>
+    <text class="t" x="452" y="142">Keyboard</text>
+    <text class="s" x="452" y="156">the hook only listens; every key still reaches the app</text>
+    <text class="t" x="452" y="180">Chat</text>
+    <text class="s" x="452" y="194">text goes in through the page DOM, never as keystrokes;</text>
+    <text class="s" x="452" y="207">the Gemini tab may stay hidden or minimized</text>
+    <text class="t" x="452" y="230">Live Captions window</text>
+    <text class="s" x="452" y="244">optional: moved off-screen, still captions</text>
+  </g>
+  <path d="M400,219 C425,219 425,95 439,95" fill="none" stroke="#4a5568" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+</svg>

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 236">
+  <style>
+    .w { font: 10px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .lb { font: 700 9.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .ls { font: 9px 'Segoe UI', sans-serif; fill: #718096; }
+    .chip { fill: #fff; stroke: #a0aec0; }
+    .win { fill: #fff; stroke: #c05621; }
+    .old { fill: #f7fafc; stroke: #cbd5e0; }
+    .new { fill: #ebf4ff; stroke: #2b6cb0; }
+  </style>
+
+  <!-- rewritten zone -->
+  <rect x="320" y="18" width="120" height="122" rx="8" fill="#fffaeb" stroke="#d69e2e" stroke-dasharray="4 3"/>
+  <text x="380" y="30" style="font: 600 9px 'Segoe UI'; fill: #b7791f; text-anchor: middle">rewritten words</text>
+
+  <!-- transcript tail -->
+  <rect class="chip" x="20" y="38" width="24" height="22" rx="5"/><text class="w" x="32" y="53">…</text>
+  <rect class="chip" x="48" y="38" width="36" height="22" rx="5"/><text class="w" x="66" y="53">Tell</text>
+  <rect class="chip" x="88" y="38" width="28" height="22" rx="5"/><text class="w" x="102" y="53">me</text>
+  <rect class="chip" x="120" y="38" width="44" height="22" rx="5"/><text class="w" x="142" y="53">about</text>
+  <rect class="chip" x="168" y="38" width="38" height="22" rx="5"/><text class="w" x="187" y="53">your</text>
+  <rect class="chip" x="210" y="38" width="70" height="22" rx="5"/><text class="w" x="245" y="53">experience</text>
+  <rect class="chip" x="284" y="38" width="32" height="22" rx="5"/><text class="w" x="300" y="53">with</text>
+  <rect class="chip" x="326" y="38" width="32" height="22" rx="5"/><text class="w" x="342" y="53">dot</text>
+  <rect class="chip" x="362" y="38" width="32" height="22" rx="5"/><text class="w" x="378" y="53">net</text>
+  <rect class="chip" x="398" y="38" width="36" height="22" rx="5"/><text class="w" x="416" y="53">eight</text>
+  <rect class="chip" x="446" y="38" width="32" height="22" rx="5"/><text class="w" x="462" y="53">and</text>
+  <rect class="chip" x="482" y="38" width="32" height="22" rx="5"/><text class="w" x="498" y="53">how</text>
+  <text class="lb" x="628" y="48">transcript tail</text><text class="ls" x="628" y="60">last ~3000 chars searched</text>
+
+  <!-- matches -->
+  <g stroke="#38a169" stroke-width="1.6">
+    <line x1="142" y1="61" x2="142" y2="105"/><line x1="187" y1="61" x2="187" y2="105"/>
+    <line x1="245" y1="61" x2="245" y2="105"/><line x1="300" y1="61" x2="300" y2="105"/>
+    <line x1="462" y1="61" x2="462" y2="105"/><line x1="498" y1="61" x2="498" y2="105"/>
+  </g>
+  <text x="380" y="88" style="font: 9px 'Segoe UI'; fill: #b7791f; text-anchor: middle">resync: skip 3 + 2</text>
+
+  <!-- window -->
+  <rect class="win" x="120" y="106" width="44" height="22" rx="5"/><text class="w" x="142" y="121">about</text>
+  <rect class="win" x="168" y="106" width="38" height="22" rx="5"/><text class="w" x="187" y="121">your</text>
+  <rect class="win" x="210" y="106" width="70" height="22" rx="5"/><text class="w" x="245" y="121">experience</text>
+  <rect class="win" x="284" y="106" width="32" height="22" rx="5"/><text class="w" x="300" y="121">with</text>
+  <rect class="win" x="332" y="106" width="44" height="22" rx="5"/><text class="w" x="354" y="121">.NET</text>
+  <rect class="win" x="382" y="106" width="28" height="22" rx="5"/><text class="w" x="396" y="121">8</text>
+  <rect class="win" x="446" y="106" width="32" height="22" rx="5"/><text class="w" x="462" y="121">and</text>
+  <rect class="win" x="482" y="106" width="32" height="22" rx="5"/><text class="w" x="498" y="121">how</text>
+  <rect class="win" x="518" y="106" width="32" height="22" rx="5"/><text class="w" x="534" y="121">you</text>
+  <rect class="win" x="554" y="106" width="46" height="22" rx="5"/><text class="w" x="577" y="121">tested</text>
+  <text class="lb" x="628" y="116" style="fill:#c05621">window (snapshot)</text><text class="ls" x="628" y="128">what Live Captions shows now</text>
+
+  <!-- key bracket -->
+  <path d="M120,134 v6 h196 v-6" fill="none" stroke="#6b46c1" stroke-width="1.4"/>
+  <text x="218" y="153" style="font: 600 9px 'Segoe UI'; fill: #6b46c1; text-anchor: middle">key: the window's first words, looked up in the tail</text>
+
+  <line x1="20" y1="166" x2="740" y2="166" stroke="#e2e8f0"/>
+
+  <!-- result -->
+  <rect class="old" x="20" y="180" width="24" height="22" rx="5"/><text class="w" x="32" y="195">…</text>
+  <rect class="old" x="48" y="180" width="36" height="22" rx="5"/><text class="w" x="66" y="195">Tell</text>
+  <rect class="old" x="88" y="180" width="28" height="22" rx="5"/><text class="w" x="102" y="195">me</text>
+  <rect class="new" x="120" y="180" width="44" height="22" rx="5"/><text class="w" x="142" y="195">about</text>
+  <rect class="new" x="168" y="180" width="38" height="22" rx="5"/><text class="w" x="187" y="195">your</text>
+  <rect class="new" x="210" y="180" width="70" height="22" rx="5"/><text class="w" x="245" y="195">experience</text>
+  <rect class="new" x="284" y="180" width="32" height="22" rx="5"/><text class="w" x="300" y="195">with</text>
+  <rect class="new" x="332" y="180" width="44" height="22" rx="5"/><text class="w" x="354" y="195">.NET</text>
+  <rect class="new" x="382" y="180" width="28" height="22" rx="5"/><text class="w" x="396" y="195">8</text>
+  <rect class="new" x="446" y="180" width="32" height="22" rx="5"/><text class="w" x="462" y="195">and</text>
+  <rect class="new" x="482" y="180" width="32" height="22" rx="5"/><text class="w" x="498" y="195">how</text>
+  <rect class="new" x="518" y="180" width="32" height="22" rx="5"/><text class="w" x="534" y="195">you</text>
+  <rect class="new" x="554" y="180" width="46" height="22" rx="5"/><text class="w" x="577" y="195">tested</text>
+  <text class="lb" x="628" y="190" style="fill:#2b6cb0">new transcript</text><text class="ls" x="628" y="202">kept prefix + window</text>
+  <text class="ls" x="20" y="222">grey: text before the match is kept as it was · blue: everything from the match on is replaced by the window, so its corrections win</text>
+</svg>

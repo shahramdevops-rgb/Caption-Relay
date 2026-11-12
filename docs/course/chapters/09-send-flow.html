@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch8" data-num="8" data-fa="زندگی یک ارسال" data-en="The life of one send">
+  <div class="chapter-head">
+    <div class="chapter-num">8</div>
+    <div>
+      <h1>زندگی یک ارسال</h1>
+      <div class="sub">The life of one send — from key-up to "Sent ✓"</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    تا اینجا قطعه‌ها را جدا دیدیم. این فصل همه را کنار هم می‌گذارد: از لحظه‌ای که کلید رها می‌شود تا وقتی نشانگر
+    <code>Sent ✓</code> نشان می‌دهد. کل مسیر در حالت عادی ۶۰ تا ۱۱۰ میلی‌ثانیه طول می‌کشد.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/send-sequence.svg" alt="send-sequence"><figcaption><b>شکل ۸-۱</b> — نمودار توالی یک ارسال موفق. پیکان‌های پر: درخواست؛ خط‌چین سبز: جواب.</figcaption></figure>
+
+  <h2>کنترل‌کننده‌ی ارسال <span class="en-tag">SendController</span></h2>
+  <p>
+    کلاس <code>SendController</code> «سیاست» ارسال را در یک جا جمع می‌کند و خودش هیچ چیزی درباره‌ی WebSocket یا Gemini
+    نمی‌داند؛ فقط با <code>CaptionCapture</code> و اینترفیس <code>IMessageSender</code> کار می‌کند. مسئولیت‌هایش:
+  </p>
+  <ul>
+    <li>نگهبان ۳۰۰ میلی‌ثانیه‌ای: فشار دوم در این فاصله نادیده گرفته می‌شود.</li>
+    <li>بررسی‌های پیش از ارسال: Live Captions در دسترس است؟ متن تازه کافی هست؟ افزونه وصل است؟ در غیر این صورت متن دست
+      نمی‌خورد (ticket فوراً بازگردانده می‌شود).</li>
+    <li>اضافه کردن پیشوند اختیاری (<code>prefix</code>) و تبدیل هر نتیجه به عملی روی ticket و یک پیام برای نشانگر.</li>
+    <li>برای ارسال‌های در صف، منتظر ماندن برای نتیجه‌ی نهایی تا ۲۰۰ ثانیه.</li>
+    <li>هرگز متن مکالمه را لاگ نمی‌کند؛ فقط طول آن را.</li>
+  </ul>
+
+  <h2>هر نتیجه، یک عمل <span class="en-tag">Outcome → action</span></h2>
+  <table>
+    <tr><th style="width:24%">نتیجه</th><th style="width:30%">با ticket چه می‌شود</th><th>نشانگر</th></tr>
+    <tr><td>ارسال شد (<code>sent</code>)</td><td>قطعی (Confirm)</td><td>پیام <code>Sent ✓</code> و یک صدای کوتاه</td></tr>
+    <tr><td>در صف (<code>queued</code>)</td><td>منتظر پیام <code>result</code></td><td>پیام <code>Queued</code> و برچسب <code>· queued</code> تا تحویل</td></tr>
+    <tr><td>خطا (<code>error</code>)</td><td>بازگشت (Restore)</td><td>پیام <code>Error:</code> به‌اضافه‌ی جزئیات، مثلاً <code>input not found</code></td></tr>
+    <tr><td>بی‌جواب در ۳ ثانیه</td><td>بازگشت (Restore)</td><td>پیام <code>No response</code></td></tr>
+    <tr><td>افزونه وصل نیست</td><td>بازگشت (Restore)</td><td>پیام <code>Gemini not connected</code></td></tr>
+    <tr><td>چیزی برای ارسال نیست</td><td>هیچ ticketی ساخته نمی‌شود</td><td>پیام <code>Nothing new</code></td></tr>
+  </table>
+
+  <div class="box why">
+    <div class="box-title">چرا مهلت ۳ ثانیه برای ack؟</div>
+    <p>
+      در حالت عادی ack در کمتر از ۱۲۰ میلی‌ثانیه می‌رسد. سه ثانیه آن‌قدر بلند است که یک تب کند هم جواب بدهد، و آن‌قدر کوتاه
+      که کاربر وسط جلسه منتظر نماند. هر کاری که طولانی‌تر است (باز کردن تب تازه، reload، صبر برای تمام شدن جواب Gemini)
+      فوراً با <code>queued</code> جواب می‌دهد و نتیجه‌ی نهایی را بعداً با پیام <code>result</code> می‌فرستد. ackی که بعد از
+      مهلت برسد فقط لاگ می‌شود؛ متن قبلاً بازگردانده شده و تکرار نمی‌شود.
+    </p>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده</div>
+    <ul>
+      <li>تب Gemini پشت یک تب دیگر: ۵۱ تا ۵۷ میلی‌ثانیه داخل صفحه، حدود ۶۰ میلی‌ثانیه از لحظه‌ی کلید.</li>
+      <li>پنجره‌ی minimize شده: ۶۹ میلی‌ثانیه.</li>
+      <li>نسخه‌ی منتشرشده روی Gemini واقعی: ۸۰ تا ۱۱۰ میلی‌ثانیه؛ در Chrome اصلی کاربر ۹۱ میلی‌ثانیه.</li>
+      <li>با کلاینت جعلی (<code>RelayTestClient</code>): رفت و برگشت کامل ۵۴ میلی‌ثانیه، که ۵۰ میلی‌ثانیه‌اش تأخیر عمدی کلاینت بود.</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>On key-up the hook posts Send to the UI thread. The controller takes the pending text as a ticket, sends it through an
+      IMessageSender abstraction and maps the outcome: sent confirms the ticket, queued waits for a later result message, and
+      error, timeout or no connection restore it. Long operations never block the ack — they answer "queued" right away and
+      report the final result asynchronously. End to end it is about 60 to 110 ms.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>How do you correlate replies with requests?</dt>
+      <dd>Every send has a GUID id. The server keeps a pending entry per id that the ack completes; a queued send stays in a
+        dictionary keyed by id until its result arrives or a 200-second timer expires.</dd>
+      <dt>What if an ack arrives after the timeout?</dt>
+      <dd>It is logged and ignored. The text was already restored, so at worst it is sent once more — never lost.</dd>
+      <dt>Why does the controller not know about WebSockets?</dt>
+      <dd>It depends on IMessageSender only. That keeps the policy testable with a fake sender and lets the transport change
+        without touching it.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

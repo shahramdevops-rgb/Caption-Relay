@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 272">
+  <style>
+    .t { font: 700 10.5px 'Segoe UI', sans-serif; text-anchor: middle; }
+    .s { font: 9px 'Segoe UI', sans-serif; text-anchor: middle; }
+    .r { font: 9px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .rb { font: 700 9.5px 'Segoe UI', sans-serif; fill: #2d3748; }
+  </style>
+
+  <!-- pyramid: apex at (230,10), base 20..440 at y=262 -->
+  <polygon points="230,10 284,70 176,70" fill="#6b46c1"/>
+  <text class="t" x="230" y="52" style="fill:#fff">Live</text>
+  <polygon points="174,74 286,74 338,132 122,132" fill="#805ad5"/>
+  <text class="t" x="230" y="100" style="fill:#fff">Integration</text>
+  <text class="s" x="230" y="116" style="fill:#e9d8fd">real sockets · fake chat page</text>
+  <polygon points="120,136 340,136 392,194 68,194" fill="#3182ce"/>
+  <text class="t" x="230" y="162" style="fill:#fff">Replays of real recordings</text>
+  <text class="s" x="230" y="178" style="fill:#bee3f8">Live Captions snapshots, gzip JSONL</text>
+  <polygon points="66,198 394,198 448,262 12,262" fill="#2b6cb0"/>
+  <text class="t" x="230" y="226" style="fill:#fff">Unit tests</text>
+  <text class="s" x="230" y="243" style="fill:#bee3f8">pure logic, fake clock, fake sender, fake socket</text>
+
+  <!-- right column -->
+  <line x1="300" y1="40" x2="470" y2="40" stroke="#cbd5e0"/>
+  <line x1="350" y1="103" x2="470" y2="103" stroke="#cbd5e0"/>
+  <line x1="400" y1="165" x2="470" y2="165" stroke="#cbd5e0"/>
+  <line x1="455" y1="230" x2="470" y2="230" stroke="#cbd5e0"/>
+
+  <text class="rb" x="478" y="30">real Windows, real Chrome, real Gemini</text>
+  <text class="r" x="478" y="44">TTS "interviewer", keys sent to a test window,</text>
+  <text class="r" x="478" y="57">every result written down with timings</text>
+
+  <text class="rb" x="478" y="93">26 relay tests with real WebSockets</text>
+  <text class="r" x="478" y="107">13 delivery tests on a fake Gemini page in a browser</text>
+  <text class="r" x="478" y="120">RelayTestClient plays the extension</text>
+
+  <text class="rb" x="478" y="155">4- and 10-minute sessions replayed</text>
+  <text class="r" x="478" y="169">through TranscriptMerger and capture:</text>
+  <text class="r" x="478" y="182">every word kept, no duplicates</text>
+
+  <text class="rb" x="478" y="218">TranscriptMerger, HotkeyStateMachine,</text>
+  <text class="r" x="478" y="232">CaptionCapture, SendController, config, logs …</text>
+  <text class="r" x="478" y="245">+ 11 Node tests for connection.js</text>
+
+  <text x="748" y="268" style="font: 600 9px 'Segoe UI'; fill: #2b6cb0; text-anchor: end">dotnet test: 169 tests in about 2 s</text>
+</svg>

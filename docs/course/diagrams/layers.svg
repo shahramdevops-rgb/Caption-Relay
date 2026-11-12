@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 326">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .band { font: 700 9px 'Segoe UI', sans-serif; letter-spacing: 1px; fill: #718096; }
+    .t { font: 700 10.5px 'Segoe UI', sans-serif; text-anchor: middle; fill: #1a4971; }
+    .s { font: 9px 'Segoe UI', sans-serif; text-anchor: middle; fill: #4a5568; }
+    .i { font: italic 600 9px 'Segoe UI', sans-serif; fill: #6b46c1; }
+    .e { font: 8.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+  </style>
+
+  <!-- composition root -->
+  <rect x="12" y="8" width="736" height="26" rx="6" fill="#2d3748"/>
+  <text x="380" y="25" style="font: 600 10px 'Segoe UI'; fill: #fff; text-anchor: middle">Program.cs — composition root: config → single instance → logger → capture → relay → hotkeys → tray</text>
+
+  <!-- bands -->
+  <rect x="12" y="44" width="626" height="70" rx="10" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text class="band" x="22" y="57">UI · WINFORMS</text>
+  <rect x="12" y="124" width="626" height="84" rx="10" fill="#ebf4ff" stroke="#c3dafe"/>
+  <text class="band" x="22" y="137" style="fill:#2b6cb0">LOGIC · PURE C#, UNIT-TESTED</text>
+  <rect x="12" y="234" width="626" height="84" rx="10" fill="#fff8f2" stroke="#fbd38d"/>
+  <text class="band" x="22" y="310" style="fill:#c05621">ADAPTERS · OS, NETWORK, FILES</text>
+
+  <!-- UI boxes -->
+  <rect x="24" y="62" width="140" height="42" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="94" y="79" style="fill:#2d3748">TrayContext</text><text class="s" x="94" y="93">tray icon, menu</text>
+  <rect x="176" y="62" width="140" height="42" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="246" y="79" style="fill:#2d3748">IndicatorForm</text><text class="s" x="246" y="93">pill that never activates</text>
+  <rect x="328" y="62" width="140" height="42" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="398" y="79" style="fill:#2d3748">IndicatorText</text><text class="s" x="398" y="93">what the pill says</text>
+  <rect x="480" y="62" width="140" height="42" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="550" y="79" style="fill:#2d3748">Sounds</text><text class="s" x="550" y="93">generated tones</text>
+
+  <!-- logic boxes -->
+  <rect x="24" y="144" width="140" height="52" rx="7" fill="#fff" stroke="#2b6cb0" stroke-width="1.3"/>
+  <text class="t" x="94" y="164">HotkeyStateMachine</text><text class="s" x="94" y="178">key events → Send / Skip</text>
+  <rect x="176" y="144" width="140" height="52" rx="7" fill="#fff" stroke="#2b6cb0" stroke-width="1.3"/>
+  <text class="t" x="246" y="164">SendController</text><text class="s" x="246" y="178">guard, outcome → feedback</text>
+  <rect x="328" y="144" width="140" height="52" rx="7" fill="#fff" stroke="#2b6cb0" stroke-width="1.3"/>
+  <text class="t" x="398" y="164">CaptionCapture</text><text class="s" x="398" y="178">sentIndex, tickets, markers</text>
+  <rect x="480" y="144" width="140" height="52" rx="7" fill="#fff" stroke="#2b6cb0" stroke-width="1.3"/>
+  <text class="t" x="550" y="164">TranscriptMerger</text><text class="s" x="550" y="178">snapshots → one transcript</text>
+
+  <!-- adapter boxes -->
+  <rect x="24" y="244" width="140" height="44" rx="7" fill="#fff" stroke="#c05621" stroke-width="1.3"/>
+  <text class="t" x="94" y="262" style="fill:#7b341e">KeyboardHook</text><text class="s" x="94" y="276">WH_KEYBOARD_LL thread</text>
+  <rect x="176" y="244" width="140" height="44" rx="7" fill="#fff" stroke="#c05621" stroke-width="1.3"/>
+  <text class="t" x="246" y="262" style="fill:#7b341e">RelayServer</text><text class="s" x="246" y="276">Kestrel WebSocket</text>
+  <rect x="328" y="244" width="140" height="44" rx="7" fill="#fff" stroke="#c05621" stroke-width="1.3"/>
+  <text class="t" x="398" y="262" style="fill:#7b341e">CaptionsReader</text><text class="s" x="398" y="276">UI Automation</text>
+  <rect x="480" y="244" width="140" height="44" rx="7" fill="#fff" stroke="#c05621" stroke-width="1.3"/>
+  <text class="t" x="550" y="262" style="fill:#7b341e">SessionWriter</text><text class="s" x="550" y="276">sessions/*.txt</text>
+
+  <!-- arrows -->
+  <g stroke="#4a5568" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+    <line x1="94" y1="243" x2="94" y2="198"/>
+    <line x1="164" y1="170" x2="175" y2="170"/>
+    <line x1="316" y1="170" x2="327" y2="170"/>
+    <line x1="468" y1="170" x2="479" y2="170"/>
+    <line x1="246" y1="143" x2="246" y2="106"/>
+    <line x1="398" y1="143" x2="398" y2="106"/>
+    <line x1="430" y1="197" x2="530" y2="242"/>
+  </g>
+  <g stroke="#6b46c1" stroke-width="1.3" fill="none" stroke-dasharray="4 3" marker-end="url(#ar)">
+    <line x1="246" y1="197" x2="246" y2="242"/>
+    <line x1="398" y1="197" x2="398" y2="242"/>
+  </g>
+  <text class="i" x="252" y="222">IMessageSender</text>
+  <text class="i" x="404" y="222">ICaptionSource</text>
+  <text class="e" x="100" y="222">key events</text>
+  <text class="e" x="252" y="120">Feedback</text>
+  <text class="e" x="404" y="120">StatusChanged</text>
+
+  <!-- cross-cutting -->
+  <rect x="648" y="44" width="100" height="274" rx="10" fill="#f0fff4" stroke="#c6f6d5"/>
+  <text class="band" x="698" y="60" style="text-anchor: middle; fill: #2f855a">CROSS-CUTTING</text>
+  <rect x="656" y="72" width="84" height="104" rx="7" fill="#fff" stroke="#68d391"/>
+  <text class="t" x="698" y="90" style="fill:#1c5235">Config</text>
+  <text class="s" x="698" y="106">AppConfig</text><text class="s" x="698" y="119">ConfigStore</text>
+  <text class="s" x="698" y="132">TokenGenerator</text>
+  <text class="s" x="698" y="154">defaults + repair</text>
+  <rect x="656" y="186" width="84" height="124" rx="7" fill="#fff" stroke="#68d391"/>
+  <text class="t" x="698" y="204" style="fill:#1c5235">Infrastructure</text>
+  <text class="s" x="698" y="220">Log, FileLogger</text><text class="s" x="698" y="233">SingleInstance</text>
+  <text class="s" x="698" y="246">AppPaths</text><text class="s" x="698" y="259">StartupRegistration</text>
+  <text class="s" x="698" y="279">no transcript text</text><text class="s" x="698" y="291">in any log</text>
+</svg>

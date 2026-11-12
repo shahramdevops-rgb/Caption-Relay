@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch7" data-num="7" data-fa="کلید میان‌بر و ماشین حالت" data-en="The hotkey state machine">
+  <div class="chapter-head">
+    <div class="chapter-num">7</div>
+    <div>
+      <h1>کلید میان‌بر و ماشین حالت</h1>
+      <div class="sub">Ctrl+Shift alone — a global hotkey as a state machine</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    کلید ارسال <code>Ctrl+Shift</code> است: فشردن و رها کردن این دو، <b>بدون هیچ کلید دیگری</b>. این ترکیب در هیچ برنامه‌ای
+    به‌تنهایی کاری نمی‌کند، پس با کار کاربر تداخل ندارد. ولی ویندوز چنین چیزی را به‌عنوان hotkey ثبت نمی‌کند
+    (<code>RegisterHotKey</code> همیشه یک کلید غیرمدیفایر می‌خواهد)، پس باید خودمان رویدادهای کیبورد را دنبال کنیم.
+  </p>
+
+  <h2>دو تکه: هوک و تصمیم <span class="en-tag">Hook and decision</span></h2>
+  <ul>
+    <li>کلاس <code>KeyboardHook</code> یک هوک سطح پایین (<code>WH_KEYBOARD_LL</code>) روی نخ خودش نصب می‌کند. هر رویداد را
+      می‌گیرد، به ماشین حالت می‌دهد، و <b>همیشه</b> آن را به برنامه‌ی بعدی رد می‌کند؛ هیچ کلیدی خورده نمی‌شود، حتی
+      <code>F9</code>.</li>
+    <li>کلاس <code>HotkeyStateMachine</code> فقط تصمیم می‌گیرد: «این کلید، پایین یا بالا، و کدام کلیدها همین الان پایین‌اند»
+      را می‌گیرد و یکی از <code>None</code>، <code>Send</code> یا <code>Skip</code> را برمی‌گرداند. هیچ API ویندوزی صدا نمی‌زند.</li>
+  </ul>
+
+  <figure><img class="dia" src="../diagrams/hotkey-fsm.svg" alt="hotkey-fsm"><figcaption><b>شکل ۷-۱</b> — ماشین حالت <code>Ctrl+Shift</code>. ارسال در لحظه‌ی <b>رها کردن</b> رخ می‌دهد، فقط اگر در این فاصله کلید دیگری زده نشده باشد.</figcaption></figure>
+
+  <div class="box why">
+    <div class="box-title">چرا روی رها کردن و نه فشردن؟</div>
+    <p>
+      در لحظه‌ای که هر دو کلید پایین‌اند، هنوز معلوم نیست کاربر می‌خواهد <code>Ctrl+Shift+T</code> بزند (باز کردن دوباره‌ی
+      تب) یا <code>Ctrl+Shift</code> تنها. فقط وقتی کلیدها رها شوند و در این فاصله کلید دیگری نیامده باشد، نیت روشن است.
+      همین منطق باعث می‌شود میان‌برهای عادی برنامه‌ها هرگز به اشتباه ارسال نکنند.
+    </p>
+  </div>
+
+  <h2>باگی که در تست واقعی پیدا شد <span class="en-tag">The missed key-up bug</span></h2>
+  <p>
+    در فاز ۱۱ یک بار <code>Ctrl+Shift</code> بی‌اثر ماند. علت: کلیدی وقتی رها شده بود که پنجره‌ی دیگری (یا صفحه‌ی امن
+    ویندوز) کیبورد را در اختیار داشت، پس هوک هرگز رویداد «رها شد» را ندید و حالت <code>Spoiled</code> باقی ماند. راه‌حل در دو قانون
+    است: وضعیت هر کلید از خود رویداد به‌اضافه‌ی <code>GetAsyncKeyState</code> ساخته می‌شود (نه از حافظه‌ی رویدادهای قبلی)،
+    و هر فشار تازه‌ای که در لحظه‌اش هیچ مدیفایری واقعاً پایین نیست، همه‌چیز را از نو شروع می‌کند.
+  </p>
+
+  <h2>دوازده سناریو <span class="en-tag">Tested scenarios</span></h2>
+  <table>
+    <tr><th>سناریو</th><th class="c" style="width:22%">نتیجه</th></tr>
+    <tr><td>فشردن <code>Ctrl+Shift</code> به هر ترتیب، یا با <code>Ctrl</code> راست</td><td class="c">ارسال، یک بار</td></tr>
+    <tr><td>نگه داشتن طولانی (تکرار خودکار کلید)</td><td class="c">ارسال، یک بار</td></tr>
+    <tr><td>دو فشار در کمتر از ۳۰۰ میلی‌ثانیه</td><td class="c">دومی نادیده</td></tr>
+    <tr><td>ترکیب‌های <code>Ctrl+Shift+T</code>، <code>Ctrl+Shift+F24</code>، <code>Ctrl+F9</code></td><td class="c">هیچ</td></tr>
+    <tr><td>فقط <code>Ctrl</code> یا فقط <code>Shift</code></td><td class="c">هیچ</td></tr>
+    <tr><td>کلید <code>F9</code> بدون مدیفایر</td><td class="c">رد کردن (Skip)</td></tr>
+    <tr><td>فشار بعد از رد کردن، بدون حرف تازه</td><td class="c">پیام Nothing new</td></tr>
+  </table>
+  <p>
+    این سناریوها دو بار اجرا شدند: یک بار به شکل تست واحد با دنباله‌های کلید شبیه‌سازی‌شده، و یک بار واقعی با اسکریپت
+    <code>tools/keytest/hotkey-test.ps1</code> که کلیدها را فقط به یک پنجره‌ی تست موقت می‌فرستد. هیچ کلیدی گیر نکرد و فوکوس
+    همیشه به پنجره‌ی قبلی برگشت.
+  </p>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>Windows cannot register Ctrl+Shift alone as a hotkey, so I use a low-level keyboard hook on its own thread that never
+      swallows keys, and a pure state machine that decides. It fires on release, only if both modifiers were down together
+      and no other key came in between, so normal shortcuts like Ctrl+Shift+T never trigger it. Key state is derived from
+      the event plus GetAsyncKeyState, and a fresh press with nothing held resets the machine — that fixed a real bug
+      where a key-up was missed while another desktop had the keyboard.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why not RegisterHotKey?</dt>
+      <dd>It requires a non-modifier key. A modifier-only chord needs a low-level hook and your own state tracking.</dd>
+      <dt>How do you test a global keyboard hook?</dt>
+      <dd>The decision logic is a pure class fed with scripted (key, down/up, state) sequences in unit tests. The thin hook is
+        verified separately with a script that sends real keys only to a temporary test window.</dd>
+      <dt>What can go wrong with low-level hooks?</dt>
+      <dd>A slow callback gets skipped or the hook removed, so it runs on a dedicated thread and returns at once. Key-up events
+        can be missed, so state is re-derived from the real key state instead of trusting history.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

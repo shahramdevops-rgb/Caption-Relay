@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch16" data-num="16" data-fa="استراتژی تست" data-en="The testing strategy">
+  <div class="chapter-head">
+    <div class="chapter-num">16</div>
+    <div>
+      <h1>استراتژی تست</h1>
+      <div class="sub">The testing strategy — from pure logic to a real interview simulation</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    سیستمی که به Live Captions، یک هوک سراسری کیبورد، یک مرورگر و یک سرویس وب بیرونی وابسته است، به‌سختی تست می‌شود.
+    راه‌حل یک هرم است: هر چه پایین‌تر، تست‌ها بیشتر، سریع‌تر و قطعی‌تر؛ هر چه بالاتر، واقعی‌تر و کمتر.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/pyramid.svg" alt="pyramid"><figcaption><b>شکل ۱۶-۱</b> — هرم تست. کل لایه‌های پایینی با یک <code>dotnet test</code> در حدود دو ثانیه اجرا می‌شوند.</figcaption></figure>
+
+  <h2>لایه به لایه <span class="en-tag">Layer by layer</span></h2>
+  <ol>
+    <li><b>تست واحد.</b> همه‌ی تصمیم‌های مهم در کلاس‌های خالص‌اند (فصل ۳)، پس مستقیم تست می‌شوند: ادغام رونوشت با ۲۸ حالت،
+      ماشین حالت کلید با دنباله‌های کلید شبیه‌سازی‌شده، capture با منبع متن جعلی و ساعت تزریقی، کنترل‌کننده‌ی ارسال با
+      فرستنده‌ی جعلی که هر نتیجه‌ای را برمی‌گرداند. ماژول اتصال افزونه هم در Node با یک WebSocket جعلی تست می‌شود.</li>
+    <li><b>بازپخش ضبط واقعی.</b> ورودی واقعی Live Captions یک بار ضبط شد (هر snapshot با زمانش) و به شکل فایل فشرده در
+      <code>tests/Fixtures</code> ماند. هر اجرای تست، چهار و ده دقیقه گفتار واقعی را — با اسکرول‌ها و بازنویسی‌های واقعی —
+      دوباره از الگوریتم رد می‌کند. یک تست هم اسکرول را روی همین snapshotها شبیه‌سازی می‌کند.</li>
+    <li><b>یکپارچه.</b> سرور WebSocket با سوکت واقعی تست می‌شود (توکن، Origin، مهلت‌ها، ack دیرهنگام). کد تحویل افزونه روی یک
+      صفحه‌ی جعلی شبیه Gemini در مرورگر واقعی تست می‌شود، که می‌تواند «مشغول» شود، selectorهایش را عوض کند، یا پیش‌نویس داشته باشد.</li>
+    <li><b>تست زنده.</b> در پایان هر فاز، سناریوها روی Windows و Chrome و Gemini واقعی اجرا و نتیجه با عدد در <code>ROADMAP.md</code>
+      نوشته شد.</li>
+  </ol>
+
+  <figure><img class="dia" src="../diagrams/test-rig.svg" alt="test-rig"><figcaption><b>شکل ۱۶-۲</b> — سکوی تست واقعی: یک گوینده‌ی مصنوعی نقش مصاحبه‌کننده را بازی می‌کند و همه‌چیز از همان مسیری می‌گذرد که کاربر واقعی تجربه می‌کند.</figcaption></figure>
+
+  <div class="box why">
+    <div class="box-title">اصل‌هایی که پشت این هرم است</div>
+    <ul>
+      <li><b>درز برای تست، از روز اول.</b> اینترفیس‌ها، ساعت تزریقی، <code>dispatch</code> تزریقی و تایمرهای تزریقی در افزونه؛ تست‌پذیری
+        بعداً اضافه نشد، شکل کد را تعیین کرد.</li>
+      <li><b>داده‌ی واقعی یک بار، بازپخش برای همیشه.</b> رفتار عجیب Live Captions را نمی‌شود حدس زد؛ ولی می‌شود ضبط کرد.</li>
+      <li><b>اندازه بگیر، بعد ادعا کن.</b> هر جمله‌ی «کار می‌کند» در نقشه‌ی راه یک عدد کنارش دارد: میلی‌ثانیه، تعداد کلمه، درصد.</li>
+      <li><b>به محیط کاربر دست نزن.</b> اسکریپت‌های کلید فقط به یک پنجره‌ی تست موقت کلید می‌فرستند، و پنجره‌ی جلو بعد از هر تست بررسی می‌شود.</li>
+    </ul>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">باگ‌هایی که فقط تست واقعی پیدا کرد</div>
+    <ul>
+      <li>ارسال بعدی به تب Gemini دیگری می‌رفت که کاربر نگاه می‌کرد (فاز ۹) — قانون «همان تب».</li>
+      <li>تحویل در پنجره‌ی minimize شده یک ثانیه طول می‌کشید (فاز ۱۰) — انتظار با MutationObserver.</li>
+      <li>یک کلید رهاشده‌ی گم‌شده، <code>Ctrl+Shift</code> بعدی را بی‌اثر می‌کرد (فاز ۱۱) — ساختن وضعیت از کلیدهای واقعی.</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>I used a test pyramid. At the base, unit tests cover the pure logic — merger, hotkey state machine, capture, send
+      controller — with fakes and an injected clock, plus Node tests for the extension's connection. Above that, real Live
+      Captions sessions that I recorded once are replayed on every run. Integration tests use real sockets and a fake chat
+      page in a real browser. At the top, live runs with a text-to-speech "interviewer" and real Gemini, with every result
+      measured. The live runs found three bugs the lower layers could not.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>How do you test against a service you do not control, like Gemini?</dt>
+      <dd>A fake page reproduces the parts the code depends on — editor, send and stop buttons, user turns — so the delivery
+        logic is tested deterministically; the real page is covered by a smaller set of live, measured runs.</dd>
+      <dt>Why record real data instead of writing synthetic cases?</dt>
+      <dd>Live Captions rewrites words in ways I would never have invented. Recording once and replaying makes those cases
+        permanent regression tests.</dd>
+      <dt>What would you add next?</dt>
+      <dd>A recorded session with heavy crosstalk and a different language, and an automated nightly live run against the real
+        chat page to catch selector changes early.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

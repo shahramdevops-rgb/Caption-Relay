@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch4" data-num="4" data-fa="خواندن Live Captions" data-en="Reading Live Captions with UI Automation">
+  <div class="chapter-head">
+    <div class="chapter-num">4</div>
+    <div>
+      <h1>خواندن Live Captions</h1>
+      <div class="sub">Reading Live Captions with UI Automation</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    برنامه‌ی Live Captions هیچ API یا فایلی برای بیرون دادن متنش ندارد. ولی هر برنامه‌ی ویندوزی، برای ابزارهای
+    دسترسی‌پذیری (مثل screen reader)، درخت عناصرش را از راه <b>UI Automation</b> در اختیار می‌گذارد. CaptionRelay
+    دقیقاً مثل یک screen reader عمل می‌کند: عنصر متن زیرنویس را پیدا می‌کند و ویژگی <code>Name</code> آن را می‌خواند.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/uia-read.svg" alt="uia-read"><figcaption><b>شکل ۴-۱</b> — سمت چپ: پیدا کردن عنصر یک بار انجام می‌شود و نتیجه cache می‌شود. سمت راست: هر ۱۲۰ میلی‌ثانیه فقط یک ویژگی خوانده می‌شود.</figcaption></figure>
+
+  <h2>سه حالت، نه دو حالت <span class="en-tag">Three states</span></h2>
+  <p>
+    خروجی خواندن عمداً سه‌حالته است. مقدار <code>null</code> یعنی Live Captions در دسترس نیست (بسته است یا پنجره‌اش پیدا
+    نشد)؛ رشته‌ی خالی یعنی پنجره هست ولی هنوز کسی حرف نزده (Live Captions تا اولین گفتار، به جای عنصر متن یک پیام
+    «آماده‌ام» نشان می‌دهد)؛ و هر متن دیگری snapshot فعلی پنجره است. اگر این دو حالت اول یکی بودند، نشانگر بی‌دلیل
+    «قطع» نشان می‌داد و اپ مدام سعی می‌کرد برنامه‌ای را که در حال اجراست دوباره باز کند.
+  </p>
+
+  <div class="box why">
+    <div class="box-title">چرا poll کردن و نه رویداد؟</div>
+    <ul>
+      <li>تضمینی نیست که این کنترل برای هر تغییر رویداد بفرستد، و حتی با رویداد هم باید کل متن دوباره خوانده شود.</li>
+      <li>خواندن یک ویژگی از یک عنصر cache‌شده بسیار ارزان است؛ ده دقیقه کار فقط سه ثانیه CPU مصرف کرد.</li>
+      <li>رفتار قابل پیش‌بینی است: هر ۱۲۰ میلی‌ثانیه یک snapshot، روی نخ خودش، با زمان‌بندی‌ای که در تست کنترل می‌شود.</li>
+    </ul>
+  </div>
+
+  <div class="cols">
+    <div class="box rule">
+      <div class="box-title">عنصر کهنه (stale)</div>
+      <p>وقتی پنجره بسته یا دوباره ساخته شود، خواندن عنصر cache‌شده خطای COM می‌دهد. خواننده cache را دور می‌ریزد و دوباره
+        جست‌وجو می‌کند، ولی حداکثر یک بار در ثانیه تا CPU هدر نرود.</p>
+    </div>
+    <div class="box rule">
+      <div class="box-title">متن روی صفحه هنگام شروع</div>
+      <p>هر متنی که موقع بالا آمدن اپ روی صفحه است مال یک گفت‌وگوی قبلی است. در فایل جلسه با برچسب
+        <code>[SKIPPED]</code> نوشته می‌شود ولی هرگز ارسال نمی‌شود.</p>
+    </div>
+  </div>
+
+  <h2>ورودی واقعی چه شکلی است <span class="en-tag">What the input really looks like</span></h2>
+  <p>
+    قبل از نوشتن الگوریتم ادغام، رفتار Live Captions با یک ضبط‌کننده (<code>tools/CaptionRecorder</code>) و یک گوینده‌ی
+    مصنوعی (<code>tools/tts/speak.ps1</code>) اندازه‌گیری شد. نتیجه، شکل مسئله را عوض کرد:
+  </p>
+  <figure><img class="dia" src="../diagrams/rolling-window.svg" alt="rolling-window"><figcaption><b>شکل ۴-۲</b> — پنجره‌ی غلتان: کلمه‌های قدیمی از اول حذف می‌شوند و کلمه‌های آخر بعداً بازنویسی می‌شوند. رونوشت اپ باید هر دو را جذب کند.</figcaption></figure>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده (فازهای ۲ و ۳)</div>
+    <ul>
+      <li>یک Live Captions تازه‌اجرا، چهار دقیقه گفتار (۶۱۶ کلمه) را بدون اسکرول روی صفحه نگه داشت.</li>
+      <li>در یک اجرای ده‌دقیقه‌ای، بعد از حدود ۴۳۰۰ تا ۴۸۰۰ کاراکتر (نزدیک ۸۰۰ کلمه) شروع به اسکرول کرد و ۱۱ بار، هر بار ۶۰ تا ۸۰ کلمه را دور ریخت.</li>
+      <li>کلمه‌ها مدت‌ها بعد از ظاهر شدن بازنویسی شدند: <code>dot net eight</code> به <code>.net 8</code>، <code>forty two</code> به <code>42</code>، و <code>I I I</code> به <code>III</code>.</li>
+      <li>نتیجه‌ی نهایی: فایل جلسه هر ۱۵۴۷ کلمه را داشت (۹۷٫۵٪ متن اصلی؛ بقیه خطای تشخیص خود Live Captions بود)، بدون تکرار.</li>
+    </ul>
+  </div>
+
+  <div class="box rejected">
+    <div class="box-title">گزینه‌های ردشده</div>
+    <ul>
+      <li>تشخیص متن از تصویر (OCR) — سنگین، کند و پر از خطا؛ وقتی متن واقعی از راه UI Automation در دسترس است، دلیلی ندارد.</li>
+      <li>فرستادن «هر چه الان روی صفحه است» — متنی که اسکرول شده گم می‌شود و متنی که دوباره دیده شود تکراری فرستاده می‌شود.</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>Live Captions has no API, so I read it the way a screen reader does: UI Automation finds the caption text block
+      by process id and automation id once, caches it, and every 120 ms I read one property. The reader returns three
+      states — not available, connected with no text, or a snapshot — which keeps the indicator honest and the
+      auto-restart logic simple. Before designing the merge I recorded real sessions and learned that the window scrolls
+      60–80 words at a time and rewrites words long after they appear.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why poll instead of subscribing to UI Automation events?</dt>
+      <dd>Events for this control are not guaranteed, and I would still have to re-read the whole text. Polling one
+        cached property is cheap — 3 s of CPU in 10 minutes — and gives deterministic timing.</dd>
+      <dt>How do you handle Live Captions being closed or restarted?</dt>
+      <dd>A failed read drops the cached element; finding is retried at most once per second, and the app starts
+        LiveCaptions.exe again every 5 s while it is missing.</dd>
+      <dt>What did measuring first change?</dt>
+      <dd>It showed the input is a rolling, self-correcting window, so "diff the new text" cannot work. That drove the
+        alignment-based merger in the next chapter.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

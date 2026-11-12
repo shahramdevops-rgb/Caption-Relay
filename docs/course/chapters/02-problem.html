@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch1" data-num="1" data-fa="مسئله و هدف‌ها" data-en="The problem and the goals">
+  <div class="chapter-head">
+    <div class="chapter-num">1</div>
+    <div>
+      <h1>مسئله و هدف‌ها</h1>
+      <div class="sub">The problem and the goals</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    فرض کنید در یک مصاحبه یا جلسه‌ی آنلاین هستید. Windows 11 با <b>Live Captions</b> حرف‌های طرف مقابل را زنده به متن
+    تبدیل می‌کند. می‌خواهید در لحظه‌های مهم، هر چه از آخرین بار گفته شده را به یک چت هوش مصنوعی (Gemini) بدهید تا
+    کمکتان کند — بدون موس، بدون تایپ، و بدون اینکه پنجره‌ی جلسه را ترک کنید.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/manual-vs-relay.svg" alt="manual-vs-relay"><figcaption><b>شکل ۱-۱</b> — روش دستی هفت حرکت دارد و فوکوس را دو بار جابه‌جا می‌کند؛ CaptionRelay یک کلید است.</figcaption></figure>
+
+  <h2>چرا این کار ساده نیست <span class="en-tag">Why it is hard</span></h2>
+  <ul>
+    <li><b>متن ثابت نیست.</b> Live Captions یک «پنجره‌ی غلتان» نشان می‌دهد: خط‌های قدیمی از بالا حذف می‌شوند و کلمه‌های
+      آخر بارها اصلاح می‌شوند (مثلاً <code>dot net eight</code> بعداً <code>.net 8</code> می‌شود). پس «متن جدید» را نمی‌شود با
+      یک مقایسه‌ی ساده‌ی رشته پیدا کرد.</li>
+    <li><b>هیچ API رسمی وجود ندارد.</b> Live Captions متنش را فقط روی صفحه نشان می‌دهد؛ تنها راه خواندنش
+      <b>UI Automation</b> است.</li>
+    <li><b>مقصد یک صفحه‌ی وب است.</b> Gemini در Chrome باز است، شاید پشت تب‌های دیگر یا حتی minimize شده، و Chrome
+      تب‌های پنهان را کند (throttle) یا حتی از حافظه خارج (discard) می‌کند.</li>
+    <li><b>فوکوس مقدس است.</b> هر راه‌حلی که برای تایپ کردن، پنجره‌ی Chrome را جلو بیاورد، کاربر را وسط جمله از جلسه
+      بیرون می‌کشد.</li>
+  </ul>
+
+  <h2>هدف‌ها و نتیجه‌شان در طراحی <span class="en-tag">Requirements → design</span></h2>
+  <table>
+    <tr><th style="width:30%">هدف</th><th>نتیجه در طراحی</th><th class="c" style="width:9%">فصل</th></tr>
+    <tr><td>یک کلید، بدون حرکت دیگر</td><td>هوک سراسری کیبورد و ماشین حالت برای <code>Ctrl+Shift</code></td><td class="c">7</td></tr>
+    <tr><td>هیچ کلمه‌ای گم نشود</td><td>رونوشت کامل جلسه در اپ، ادغام هوشمند snapshotها، <code>sentIndex</code> و ticket</td><td class="c">5، 6</td></tr>
+    <tr><td>فوکوس هرگز جابه‌جا نشود</td><td>تایپ در صفحه از داخل افزونه (DOM)، نه با شبیه‌سازی کیبورد؛ پنجره‌ی نشانگری که فعال نمی‌شود</td><td class="c">12، 15</td></tr>
+    <tr><td>کار در تب پس‌زمینه و minimize</td><td>انتظار با MutationObserver به جای تایمر، جلوگیری از discard، و reload کردن تب یخ‌زده</td><td class="c">14</td></tr>
+    <tr><td>امن، فقط روی همین کامپیوتر</td><td>سرور loopback، بررسی Origin، توکن تصادفی ۲۵۶ بیتی</td><td class="c">9</td></tr>
+    <tr><td>امروز Gemini، فردا ChatGPT و API</td><td>پروتکل و اپ بی‌طرف؛ انتزاع provider در افزونه</td><td class="c">10، 12</td></tr>
+    <tr><td>حریم خصوصی</td><td>لاگ‌ها هرگز متن مکالمه ندارند؛ توکن فقط به شکل fingerprint</td><td class="c">9</td></tr>
+  </table>
+
+  <div class="box rejected">
+    <div class="box-title">چیزهایی که عمداً جزو هدف نبودند (non-goals)</div>
+    <ul>
+      <li>تشخیص گفتار اختصاصی — Live Captions این کار را خوب و آفلاین انجام می‌دهد؛ دوباره‌سازی‌اش ارزشی ندارد.</li>
+      <li>سرور ابری یا حساب کاربری — همه‌چیز روی همین کامپیوتر می‌ماند.</li>
+      <li>کلید API — از چت وبی استفاده می‌شود که کاربر از قبل در آن وارد شده (با Gemها و تاریخچه‌اش).</li>
+    </ul>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>CaptionRelay is a small Windows tray app plus a Chrome extension. One global hotkey takes everything Windows Live
+      Captions has heard since the last send and submits it into an open Gemini chat. The hard parts were that the
+      caption text is a rolling, self-correcting window, that there is no API to read it, and that the target is a web
+      page in a background tab — all without ever stealing focus or losing a single word.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>What were your non-functional requirements?</dt>
+      <dd>Zero text loss, no focus change, under ~100 ms from key to submit, local-only security, and a provider-neutral
+        core so other chats can be added without touching the app.</dd>
+      <dt>Why not build your own speech recognition?</dt>
+      <dd>Live Captions is already accurate, offline and free. The value of the project is in the reliable relay, not
+        in re-implementing ASR.</dd>
+      <dt>Which requirement shaped the design most?</dt>
+      <dd>"Never lose text." It is why the app keeps its own full transcript, why sends are tickets that can be
+        restored, and why the merge algorithm prefers duplicating a few words over dropping any.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

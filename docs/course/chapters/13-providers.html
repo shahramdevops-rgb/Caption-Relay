@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch12" data-num="12" data-fa="انتزاع provider و ماژول web-chat" data-en="The provider abstraction and the web-chat module">
+  <div class="chapter-head">
+    <div class="chapter-num">12</div>
+    <div>
+      <h1>انتزاع provider و ماژول web-chat</h1>
+      <div class="sub">One interface for every chat — and how text really gets into a web page</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    از روز اول معلوم بود Gemini آخرین مقصد نیست: ChatGPT و Claude و APIها هم در نقشه‌ی راه بودند. تصمیم معماری این بود که
+    <b>اپ و پروتکل هیچ چیزی درباره‌ی مقصد ندانند</b> و انتخاب مقصد فقط داخل افزونه انجام شود.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/provider-abstraction.svg" alt="provider-abstraction"><figcaption><b>شکل ۱۲-۱</b> — لایه‌ی بی‌طرف، یک اینترفیس، دو خانواده. کادرهای خط‌چین برنامه‌ریزی‌شده‌اند و هنوز ساخته نشده‌اند.</figcaption></figure>
+
+  <h2>یک اینترفیس، دو خانواده <span class="en-tag">Two kinds of providers</span></h2>
+  <ul>
+    <li>هر provider فقط سه چیز دارد: شناسه، نام، و تابع <code>deliver(text, ctx)</code> که یک ack برمی‌گرداند. رجیستری نگاشت
+      شناسه به provider است و provider فعال در صفحه‌ی تنظیمات انتخاب می‌شود.</li>
+    <li>خانواده‌ی <b>web-chat</b> — یعنی Gemini و ChatGPT و Claude.ai — در تب چت با یک content script کار می‌کند. منطق مشترک — گذاشتن
+      متن، ارسال، تأیید، صف حالت مشغول، تب پس‌زمینه — یک بار در <code>webchat.js</code> نوشته شده؛ هر provider فقط
+      selectorهای خودش و دو بررسی «مشغول است؟» و «ظاهر شد؟» را می‌دهد.</li>
+    <li>خانواده‌ی <b>API</b> (برای آینده) صفحه‌ای ندارد: از service worker درخواست <code>fetch</code> می‌فرستد و کلید را در
+      حافظه‌ی افزونه نگه می‌دارد. چون صفحه‌ی چتی نیست، باید جایی برای نمایش جواب داشته باشد؛ طرح فعلی یک پیام اختیاری
+      تازه به اسم <code>answer</code> است، که طبق قانون‌های تکامل پروتکل چیزی را نمی‌شکند.</li>
+  </ul>
+
+  <div class="box why">
+    <div class="box-title">چرا مرز این‌جاست؟</div>
+    <p>
+      هر چیزی که با تغییر مقصد عوض می‌شود (صفحه، selectorها، نحوه‌ی ارسال، تشخیص مشغول بودن) داخل افزونه است؛ هر چیزی که
+      ثابت می‌ماند (گرفتن متن، ticket، امنیت، نشانگر) داخل اپ است. این همان اصل باز-بسته (Open/Closed) است: اضافه کردن
+      ChatGPT یعنی یک پوشه‌ی تازه و یک خط در رجیستری، بدون تغییر اپ یا پروتکل.
+    </p>
+  </div>
+
+  <h2>گذاشتن متن در یک صفحه‌ی وب واقعی <span class="en-tag">The web-chat pipeline</span></h2>
+  <p>
+    جعبه‌ی ورودی Gemini یک <code>textarea</code> ساده نیست؛ یک ویرایشگر غنی (Quill) است که فقط به رویدادهای واقعی ورودی
+    واکنش نشان می‌دهد. اگر متن را مستقیم در DOM بگذاریم، ممکن است روی صفحه دیده شود ولی ویرایشگر از آن خبر نداشته
+    باشد و دکمه‌ی ارسال فعال نشود. برای همین هر قدم یک <b>زنجیره‌ی جایگزین</b> دارد و نتیجه‌ی هر روش بررسی می‌شود.
+  </p>
+  <figure><img class="dia" src="../diagrams/webchat-pipeline.svg" alt="webchat-pipeline"><figcaption><b>شکل ۱۲-۲</b> — چهار قدم تحویل. در هر ستون، روش بعدی فقط وقتی امتحان می‌شود که روش قبلی جواب نداده باشد.</figcaption></figure>
+
+  <div class="cols">
+    <div class="box rule">
+      <div class="box-title">پیش‌نویس کاربر حفظ می‌شود</div>
+      <p>اگر کاربر خودش چیزی در جعبه نوشته باشد، پاک نمی‌شود: پیام نهایی «پیش‌نویس، یک خط خالی، متن» است، و پیش‌نویس اول می‌آید.</p>
+    </div>
+    <div class="box rule">
+      <div class="box-title">همه‌ی selectorها در یک فایل</div>
+      <p>وقتی Google صفحه را عوض کند، فقط <code>selectors.js</code> اصلاح می‌شود. دکمه‌ی Test در تنظیمات نشان می‌دهد کدام selector پیدا شد.</p>
+    </div>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">تست‌شده</div>
+    <p>۱۳ تست روی یک صفحه‌ی جعلی شبیه Gemini (<code>tests/extension/fake-chat.html</code>) در مرورگر واقعی: هر سه روش گذاشتن متن،
+      دکمه‌ی نزدیک‌ترین وقتی selector نمی‌خورد، حفظ پیش‌نویس، صف. روی Gemini واقعی: ارسال در ۹۲ تا ۱۱۳ میلی‌ثانیه داخل صفحه، و
+      selectorها روی صفحه‌ی زنده بررسی شدند.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The app and the protocol are provider-neutral; the extension owns a registry of providers behind one small
+      interface — id, name and deliver returning an ack. Web-chat providers share one module for inserting, submitting,
+      verifying and queueing, and only supply their selectors and two checks. Inserting into a rich editor is fragile, so
+      every step is a fallback chain — execCommand, then a synthetic paste, then a direct set — and each attempt is
+      verified. Adding ChatGPT means a new folder and one registry line, with no change to the app.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Where would you add a new chat provider?</dt>
+      <dd>In the extension only: a providers/&lt;id&gt; folder with its selectors and busy/appeared checks, registered in one
+        line. The app and protocol do not change.</dd>
+      <dt>Why not just set the input's value?</dt>
+      <dd>The prompt box is a rich-text editor that tracks its own state. Setting the DOM directly can show text the editor
+        ignores. execCommand produces real input events; the other methods are fallbacks, and every one is verified.</dd>
+      <dt>How do you survive UI changes by Google?</dt>
+      <dd>Ordered selector lists that prefer structure over labels, a "closest send-like button" fallback, one selectors
+        file, a Test button, and diagnostics in the app log that list the buttons the extension saw.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

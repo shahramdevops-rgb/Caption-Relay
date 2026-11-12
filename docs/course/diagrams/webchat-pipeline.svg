@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 232">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .h { font: 700 10.5px 'Segoe UI', sans-serif; fill: #fff; text-anchor: middle; }
+    .hs { font: 8.5px 'Segoe UI', sans-serif; fill: #e9d8fd; text-anchor: middle; }
+    .t { font: 9.5px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .n { font: 700 9px 'Segoe UI', sans-serif; fill: #6b46c1; }
+    .f { font: 8.5px 'Segoe UI', sans-serif; fill: #a0aec0; text-anchor: middle; }
+    .bx { fill: #fff; stroke: #b794f4; }
+  </style>
+
+  <!-- headers -->
+  <rect x="12" y="8" width="172" height="40" rx="9" fill="#553c9a"/>
+  <text class="h" x="98" y="26">1 · Find the box</text><text class="hs" x="98" y="40">and check sign-in</text>
+  <rect x="200" y="8" width="172" height="40" rx="9" fill="#553c9a"/>
+  <text class="h" x="286" y="26">2 · Insert</text><text class="hs" x="286" y="40">draft, blank line, text</text>
+  <rect x="388" y="8" width="172" height="40" rx="9" fill="#553c9a"/>
+  <text class="h" x="474" y="26">3 · Submit</text><text class="hs" x="474" y="40">never mic or upload</text>
+  <rect x="576" y="8" width="172" height="40" rx="9" fill="#553c9a"/>
+  <text class="h" x="662" y="26">4 · Verify</text><text class="hs" x="662" y="40">any one of these</text>
+  <g stroke="#4a5568" stroke-width="1.4" fill="none" marker-end="url(#ar)">
+    <line x1="184" y1="28" x2="199" y2="28"/><line x1="372" y1="28" x2="387" y2="28"/><line x1="560" y1="28" x2="575" y2="28"/>
+  </g>
+
+  <!-- column 1 -->
+  <rect class="bx" x="12" y="62" width="172" height="40" rx="7"/>
+  <text class="t" x="98" y="79">selector list, tried in order</text><text class="t" x="98" y="93">first visible match wins</text>
+  <rect class="bx" x="12" y="114" width="172" height="40" rx="7"/>
+  <text class="t" x="98" y="131">structure first, labels last</text><text class="t" x="98" y="145">(UI may be in Persian)</text>
+  <rect class="bx" x="12" y="166" width="172" height="40" rx="7" style="stroke:#fc8181"/>
+  <text class="t" x="98" y="183">sign-in link visible?</text><text class="t" x="98" y="197">→ error "not logged in"</text>
+
+  <!-- column 2 -->
+  <rect class="bx" x="200" y="62" width="172" height="40" rx="7"/>
+  <text class="n" x="208" y="76">1</text><text class="t" x="290" y="79">execCommand('insertText')</text><text class="t" x="290" y="93">the editor sees real typing</text>
+  <rect class="bx" x="200" y="114" width="172" height="40" rx="7"/>
+  <text class="n" x="208" y="128">2</text><text class="t" x="290" y="131">synthetic paste event</text><text class="t" x="290" y="145">with a DataTransfer</text>
+  <rect class="bx" x="200" y="166" width="172" height="40" rx="7"/>
+  <text class="n" x="208" y="180">3</text><text class="t" x="290" y="183">set the content directly</text><text class="t" x="290" y="197">and fire "input"</text>
+  <text class="f" x="286" y="110">not verified → next</text><text class="f" x="286" y="162">not verified → next</text>
+
+  <!-- column 3 -->
+  <rect class="bx" x="388" y="62" width="172" height="40" rx="7"/>
+  <text class="n" x="396" y="76">1</text><text class="t" x="478" y="79">send-button selectors</text><text class="t" x="478" y="93">(enabled, visible)</text>
+  <rect class="bx" x="388" y="114" width="172" height="40" rx="7"/>
+  <text class="n" x="396" y="128">2</text><text class="t" x="478" y="131">closest send-like button</text><text class="t" x="478" y="145">in the box's container</text>
+  <rect class="bx" x="388" y="166" width="172" height="40" rx="7"/>
+  <text class="n" x="396" y="180">3</text><text class="t" x="478" y="183">press Enter</text><text class="t" x="478" y="197">in the editor</text>
+  <text class="f" x="474" y="110">not found → next</text><text class="f" x="474" y="162">not found → next</text>
+
+  <!-- column 4 -->
+  <rect class="bx" x="576" y="62" width="172" height="40" rx="7" style="stroke:#68d391"/>
+  <text class="t" x="662" y="79">a new user turn</text><text class="t" x="662" y="93">appeared</text>
+  <rect class="bx" x="576" y="114" width="172" height="40" rx="7" style="stroke:#68d391"/>
+  <text class="t" x="662" y="131">the box was emptied</text><text class="t" x="662" y="145">after the click</text>
+  <rect class="bx" x="576" y="166" width="172" height="40" rx="7" style="stroke:#68d391"/>
+  <text class="t" x="662" y="183">generation started</text><text class="t" x="662" y="197">(stop button shown)</text>
+  <text class="f" x="662" y="110">or</text><text class="f" x="662" y="162">or</text>
+
+  <text x="380" y="226" style="font: 9px 'Segoe UI'; fill: #718096; text-anchor: middle">every step reports what it used ("execCommand", "closest button" …) in the ack detail and the app log, so a broken selector is easy to spot</text>
+</svg>

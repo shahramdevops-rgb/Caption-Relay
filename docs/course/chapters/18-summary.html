@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch17" data-num="17" data-fa="جمع‌بندی: تصمیم‌ها، عددها، واژه‌ها" data-en="Summary: decisions, numbers, glossary">
+  <div class="chapter-head">
+    <div class="chapter-num">17</div>
+    <div>
+      <h1>جمع‌بندی: تصمیم‌ها، عددها، واژه‌ها</h1>
+      <div class="sub">Summary — the decision log, the numbers and a glossary</div>
+    </div>
+  </div>
+
+  <h2>دفتر تصمیم‌ها <span class="en-tag">Decision log</span></h2>
+  <table>
+    <tr><th style="width:27%">تصمیم</th><th style="width:40%">دلیل</th><th>گزینه‌ی ردشده</th></tr>
+    <tr><td>دو برنامه: اپ دسکتاپ و افزونه</td><td>هر طرف توانایی‌ای دارد که دیگری ندارد</td><td>فقط افزونه، یا فقط اپ</td></tr>
+    <tr><td>خواندن با UI Automation و poll</td><td>تنها راه رسمی؛ ارزان و قابل پیش‌بینی</td><td>تشخیص متن از تصویر، رویدادها</td></tr>
+    <tr><td>رونوشت کامل در اپ</td><td>متن اسکرول‌شده گم نشود</td><td>فرستادن متن روی صفحه</td></tr>
+    <tr><td>ادغام کلمه‌ای با هم‌ترازی</td><td>علامت‌گذاری و بازنویسی را تحمل می‌کند</td><td>مقایسه‌ی کاراکتری، LCS کامل</td></tr>
+    <tr><td>قانون «تکرار بله، گم شدن نه»</td><td>هزینه‌ی گم شدن بسیار بیشتر است</td><td>ادغام تهاجمی‌تر</td></tr>
+    <tr><td>ارسال به شکل ticket</td><td>یک بار در حالت عادی، حداقل یک بار در شکست</td><td>جابه‌جایی اشاره‌گر بعد از جواب</td></tr>
+    <tr><td>کلید <code>Ctrl+Shift</code> روی رها کردن</td><td>با میان‌برهای دیگر تداخل ندارد</td><td>ثبت hotkey ویندوز</td></tr>
+    <tr><td>هوک روی نخ جدا</td><td>نخ UI شلوغ کیبورد را کند نکند</td><td>هوک روی نخ UI</td></tr>
+    <tr><td>وب‌سوکت روی loopback</td><td>دو عمر مستقل، تست با کلاینت جعلی</td><td>پیام‌رسانی Native Messaging یا DevTools Protocol</td></tr>
+    <tr><td>سه دروازه‌ی امنیتی</td><td>هر کدام یک نوع مهاجم را متوقف می‌کند</td><td>فقط loopback</td></tr>
+    <tr><td>پروتکل بی‌طرف و قابل تکامل</td><td>افزودن provider تازه بدون تغییر اپ</td><td>پیام‌های مخصوص Gemini</td></tr>
+    <tr><td>وضعیت queued و پیام result</td><td>پیام ack همیشه سریع می‌ماند</td><td>یک ack کند با مهلت طولانی</td></tr>
+    <tr><td>زنجیره‌ی جایگزین با تأیید</td><td>ویرایشگر غنی و صفحه‌ای که عوض می‌شود</td><td>گذاشتن مستقیم مقدار</td></tr>
+    <tr><td>صف در صفحه، ادغام در یک پیام</td><td>جواب در حال نوشتن قطع نمی‌شود</td><td>کلیک روی دکمه‌ی توقف</td></tr>
+    <tr><td>انتظار با MutationObserver</td><td>در تب پنهان کند نمی‌شود</td><td>تایمرهای کوتاه</td></tr>
+    <tr><td>پنجره‌ای که فعال نمی‌شود</td><td>فوکوس کاربر مقدس است</td><td>پنجره‌ی معمولی یا پیام‌های popup</td></tr>
+  </table>
+
+  <h2>عددهایی که ارزش به خاطر سپردن دارند <span class="en-tag">The numbers</span></h2>
+  <div class="cols">
+    <table>
+      <tr><th>اندازه</th><th class="c">مقدار</th></tr>
+      <tr><td>از کلید تا ارسال در Gemini</td><td class="c"><bdi>60–110 ms</bdi></td></tr>
+      <tr><td>پنجره‌ی minimize شده، قبل و بعد</td><td class="c"><bdi>1,064 → 69 ms</bdi></td></tr>
+      <tr><td>دوره‌ی poll کردن Live Captions</td><td class="c"><bdi>120 ms</bdi></td></tr>
+      <tr><td>مصرف ده دقیقه کار</td><td class="c"><bdi>3 s CPU · 72 MB</bdi></td></tr>
+      <tr><td>اتصال دوباره بعد از راه‌اندازی اپ</td><td class="c"><bdi>0.9 s</bdi></td></tr>
+    </table>
+    <table>
+      <tr><th>اندازه</th><th class="c">مقدار</th></tr>
+      <tr><td>چهار دقیقه گفتار در یک ارسال</td><td class="c">623 کلمه</td></tr>
+      <tr><td>اسکرول Live Captions بعد از</td><td class="c">حدود 800 کلمه</td></tr>
+      <tr><td>مهلت ack، انتظار result</td><td class="c"><bdi>3 s · 200 s</bdi></td></tr>
+      <tr><td>فاصله‌ی ping، بستن اتصال بی‌صدا</td><td class="c"><bdi>20 s · 65 s</bdi></td></tr>
+      <tr><td>تست‌های xUnit و Node و صفحه‌ی جعلی</td><td class="c"><bdi>169 · 11 · 13</bdi></td></tr>
+    </table>
+  </div>
+
+  <h2>واژه‌نامه <span class="en-tag">Glossary</span></h2>
+  <table>
+    <tr><th style="width:34%">اصطلاح</th><th>معنی در این پروژه</th></tr>
+    <tr><td>رونوشت (<bdi>transcript</bdi>)</td><td>متن کامل و رو به رشد جلسه در اپ، ساخته‌شده از snapshotها</td></tr>
+    <tr><td>پنجره (<bdi>window / snapshot</bdi>)</td><td>متنی که Live Captions در یک لحظه نشان می‌دهد</td></tr>
+    <tr><td>اشاره‌گر ارسال (<code>sentIndex</code>)</td><td>مرز بین متن فرستاده‌شده و متن pending</td></tr>
+    <tr><td>بلیت ارسال (<bdi>ticket</bdi>)</td><td>یک ارسال در راه، که یا قطعی می‌شود یا برمی‌گردد</td></tr>
+    <tr><td>نقشه‌ی موقعیت (<code>MapIndex</code>)</td><td>ترجمه‌ی یک موقعیت از رونوشت قدیم به رونوشت جدید</td></tr>
+    <tr><td>تأمین‌کننده (<bdi>provider</bdi>)</td><td>مقصد متن داخل افزونه: Gemini امروز، ChatGPT یا API فردا</td></tr>
+    <tr><td>کارگر سرویس (<bdi>service worker</bdi>)</td><td>بخش پس‌زمینه‌ی افزونه‌ی MV3 که ممکن است متوقف شود</td></tr>
+    <tr><td>اسکریپت صفحه (<bdi>content script</bdi>)</td><td>کد افزونه که داخل تب Gemini با DOM کار می‌کند</td></tr>
+    <tr><td>کندسازی (<bdi>throttling</bdi>)</td><td>کار Chrome که تایمرهای تب پنهان را دیرتر اجرا می‌کند</td></tr>
+    <tr><td>بیرون انداختن (<bdi>discard</bdi>)</td><td>خالی کردن تب از حافظه توسط Memory Saver</td></tr>
+  </table>
+
+  <h2>قدم‌های بعدی <span class="en-tag">What comes next</span></h2>
+  <p>
+    نقشه‌ی راه سه provider دیگر دارد: ChatGPT و Claude.ai در خانواده‌ی web-chat (فقط selectorها و دو بررسی)، و providerهای API
+    که به یک پیام اختیاری تازه برای نمایش جواب نیاز دارند. هر سه بدون تغییر اپ یا پروتکل اضافه می‌شوند، و آزمون واقعی
+    معماری همین است.
+  </p>
+
+  <div class="box interview">
+    <div class="box-title">THE TWO-MINUTE VERSION</div>
+    <p>CaptionRelay sends everything Windows Live Captions heard since the last send into a Gemini web chat with one hotkey,
+      without moving focus. A C# tray app reads Live Captions through UI Automation every 120 ms and merges each rolling,
+      self-correcting snapshot into one transcript with a word-alignment algorithm whose rule is "duplicate a few words,
+      never lose one". A send is a ticket that is confirmed on success or restored on failure. A modifier-only hotkey is a
+      pure state machine behind a low-level hook. The app talks to a Manifest V3 extension over a loopback WebSocket
+      secured by Origin checks and a 256-bit token, with a small provider-neutral protocol. The extension delivers into the
+      page with verified fallback chains, queues while the chat is answering, and survives hidden, throttled and frozen
+      tabs. It is tested as a pyramid, from unit tests to replays of real recordings and measured live runs — about 80 ms
+      from key to submitted message.</p>
+  </div>
+</section>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 262">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b46c1"/>
+    </marker>
+  </defs>
+  <style>
+    .ln { font: 700 10.5px 'Segoe UI', sans-serif; fill: #2d3748; }
+    .ls { font: 9px 'Segoe UI', sans-serif; fill: #718096; }
+    .t { font: 700 10px 'Segoe UI', sans-serif; text-anchor: middle; fill: #1a202c; }
+    .s { font: 9px 'Segoe UI', sans-serif; text-anchor: middle; fill: #4a5568; }
+  </style>
+
+  <!-- lanes -->
+  <rect x="10" y="10" width="740" height="54" rx="9" fill="#ebf4ff" stroke="#c3dafe"/>
+  <text class="ln" x="22" y="33">UI thread</text><text class="ls" x="22" y="47">WinForms message loop</text>
+  <rect x="10" y="72" width="740" height="54" rx="9" fill="#f7fafc" stroke="#e2e8f0"/>
+  <text class="ln" x="22" y="95">Hook thread</text><text class="ls" x="22" y="109">own message loop</text>
+  <rect x="10" y="134" width="740" height="54" rx="9" fill="#fff8f2" stroke="#fbd38d"/>
+  <text class="ln" x="22" y="157">Capture thread</text><text class="ls" x="22" y="171">poll every 120 ms</text>
+  <rect x="10" y="196" width="740" height="54" rx="9" fill="#f0fff4" stroke="#c6f6d5"/>
+  <text class="ln" x="22" y="219">Kestrel / thread pool</text><text class="ls" x="22" y="233">one loop per socket</text>
+
+  <!-- UI lane -->
+  <rect x="176" y="18" width="224" height="38" rx="7" fill="#fff" stroke="#2b6cb0"/>
+  <text class="t" x="288" y="34">SendController</text><text class="s" x="288" y="48">Take → SendAsync → Confirm / Restore</text>
+  <rect x="470" y="18" width="200" height="38" rx="7" fill="#fff" stroke="#2b6cb0"/>
+  <text class="t" x="570" y="34">IndicatorForm, Tray, Sounds</text><text class="s" x="570" y="48">every window and control</text>
+
+  <!-- hook lane -->
+  <rect x="176" y="80" width="150" height="38" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="251" y="96">hook callback</text><text class="s" x="251" y="110">HotkeyStateMachine.OnKey</text>
+  <text class="s" x="606" y="103" style="text-anchor: end">returns at once, never swallows a key (CallNextHookEx)</text>
+
+  <!-- capture lane -->
+  <rect x="470" y="142" width="200" height="38" rx="7" fill="#fff" stroke="#c05621"/>
+  <text class="t" x="570" y="158">Read (UIA) → Merge → map</text><text class="s" x="570" y="172">all under one lock</text>
+  <rect x="176" y="142" width="150" height="38" rx="7" fill="#fff" stroke="#c05621"/>
+  <text class="t" x="251" y="158">Tick every 2 s</text><text class="s" x="251" y="172">session file</text>
+
+  <!-- kestrel lane -->
+  <rect x="176" y="204" width="224" height="38" rx="7" fill="#fff" stroke="#2f855a"/>
+  <text class="t" x="288" y="220">receive loop: ack, result, log</text><text class="s" x="288" y="234">completes the pending send</text>
+  <rect x="470" y="204" width="200" height="38" rx="7" fill="#fff" stroke="#2f855a"/>
+  <text class="t" x="570" y="220">ping loop</text><text class="s" x="570" y="234">every 20 s, idle close at 65 s</text>
+
+  <!-- marshalling arrows -->
+  <g stroke="#6b46c1" stroke-width="1.4" fill="none" stroke-dasharray="5 3" marker-end="url(#ar)">
+    <line x1="230" y1="79" x2="230" y2="58"/>
+    <line x1="620" y1="141" x2="620" y2="58"/>
+    <line x1="360" y1="203" x2="360" y2="58"/>
+  </g>
+  <text x="700" y="250" style="font: italic 9px 'Segoe UI'; fill: #6b46c1; text-anchor: end"></text>
+</svg>

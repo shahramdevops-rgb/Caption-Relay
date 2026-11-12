@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 224">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .t { font: 700 10.5px 'Segoe UI', sans-serif; text-anchor: middle; }
+    .s { font: 9px 'Segoe UI', sans-serif; fill: #4a5568; text-anchor: middle; }
+    .e { font: 9px 'Segoe UI', sans-serif; fill: #2d3748; }
+  </style>
+
+  <rect x="12" y="84" width="120" height="44" rx="22" fill="#2d3748"/>
+  <text class="t" x="72" y="103" style="fill:#fff">Ctrl+Shift</text>
+  <text class="s" x="72" y="117" style="fill:#cbd5e0">Take() → ticket</text>
+
+  <rect x="178" y="80" width="150" height="52" rx="9" fill="#fffaeb" stroke="#d69e2e" stroke-width="1.3"/>
+  <text class="t" x="253" y="101" style="fill:#975a16">waiting for ack</text>
+  <text class="s" x="253" y="117">at most 3 s</text>
+
+  <rect x="410" y="128" width="160" height="52" rx="9" fill="#fffaeb" stroke="#d69e2e" stroke-width="1.3"/>
+  <text class="t" x="490" y="149" style="fill:#975a16">waiting for result</text>
+  <text class="s" x="490" y="165">chat busy · at most 200 s</text>
+
+  <rect x="614" y="14" width="134" height="52" rx="9" fill="#eaf7ef" stroke="#38a169" stroke-width="1.3"/>
+  <text class="t" x="681" y="35" style="fill:#2f855a">Confirmed</text>
+  <text class="s" x="681" y="51">[SENT] marker is final</text>
+
+  <rect x="614" y="148" width="134" height="52" rx="9" fill="#fff5f5" stroke="#fc8181" stroke-width="1.3"/>
+  <text class="t" x="681" y="169" style="fill:#c53030">Restored</text>
+  <text class="s" x="681" y="185">text pending again</text>
+
+  <g stroke="#4a5568" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+    <line x1="132" y1="106" x2="177" y2="106"/>
+    <path d="M328,92 C420,60 520,40 613,40"/>
+    <path d="M328,120 C360,140 380,154 409,154"/>
+    <path d="M540,128 C570,100 590,60 613,52"/>
+    <path d="M570,166 H613"/>
+    <path d="M300,132 C340,200 520,206 613,186"/>
+  </g>
+  <text class="e" x="420" y="50">ack "sent"</text>
+  <text class="e" x="330" y="158">ack "queued"</text>
+  <text class="e" x="574" y="98">result "sent"</text>
+  <text class="e" x="574" y="150">error /</text><text class="e" x="574" y="161">200 s</text>
+  <text class="e" x="300" y="218">ack "error", no ack in 3 s, not connected</text>
+  <text class="s" x="681" y="84" style="text-anchor: middle">indicator: Sent ✓ + tone</text>
+  <text class="s" x="681" y="132" style="text-anchor: middle">goes with the next send</text>
+</svg>

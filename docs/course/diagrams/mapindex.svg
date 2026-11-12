@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 196">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#38a169"/>
+    </marker>
+  </defs>
+  <style>
+    .w { font: 10px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .lb { font: 700 9.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .ls { font: 9px 'Segoe UI', sans-serif; fill: #718096; }
+    .sent { fill: #edf2f7; stroke: #cbd5e0; }
+    .pend { fill: #ebf4ff; stroke: #2b6cb0; }
+    .mk { font: 700 9px 'Segoe UI', sans-serif; fill: #c53030; }
+  </style>
+
+  <text class="lb" x="380" y="47">before the merge</text>
+  <rect class="sent" x="20" y="32" width="38" height="22" rx="5"/><text class="w" x="39" y="47">your</text>
+  <rect class="sent" x="62" y="32" width="70" height="22" rx="5"/><text class="w" x="97" y="47">experience</text>
+  <rect class="sent" x="136" y="32" width="34" height="22" rx="5"/><text class="w" x="153" y="47">with</text>
+  <rect class="sent" x="174" y="32" width="32" height="22" rx="5"/><text class="w" x="190" y="47">dot</text>
+  <rect class="sent" x="210" y="32" width="32" height="22" rx="5"/><text class="w" x="226" y="47">net</text>
+  <rect class="sent" x="246" y="32" width="38" height="22" rx="5"/><text class="w" x="265" y="47">eight</text>
+  <rect class="pend" x="296" y="32" width="34" height="22" rx="5"/><text class="w" x="313" y="47">and</text>
+  <rect class="pend" x="334" y="32" width="34" height="22" rx="5"/><text class="w" x="351" y="47">how</text>
+  <line x1="290" y1="26" x2="290" y2="60" stroke="#c53030" stroke-width="2.2"/>
+  <text class="mk" x="290" y="72" style="text-anchor: middle">sentIndex</text>
+
+  <g stroke="#38a169" stroke-width="1.3" fill="none" marker-end="url(#ar)" stroke-dasharray="3 2">
+    <path d="M39,55 V118"/><path d="M97,55 V118"/><path d="M153,55 V118"/>
+    <path d="M313,55 C313,90 313,90 313,118"/><path d="M351,55 V118"/>
+  </g>
+  <text class="ls" x="380" y="92">matched words keep their place (green arrows)</text>
+  <text class="ls" x="170" y="92" style="fill:#b7791f">"dot net eight" was rewritten</text>
+
+  <text class="lb" x="380" y="135">after the merge</text>
+  <rect class="sent" x="20" y="120" width="38" height="22" rx="5"/><text class="w" x="39" y="135">your</text>
+  <rect class="sent" x="62" y="120" width="70" height="22" rx="5"/><text class="w" x="97" y="135">experience</text>
+  <rect class="sent" x="136" y="120" width="34" height="22" rx="5"/><text class="w" x="153" y="135">with</text>
+  <rect class="pend" x="182" y="120" width="44" height="22" rx="5"/><text class="w" x="204" y="135">.NET</text>
+  <rect class="pend" x="230" y="120" width="28" height="22" rx="5"/><text class="w" x="244" y="135">8</text>
+  <rect class="pend" x="296" y="120" width="34" height="22" rx="5"/><text class="w" x="313" y="135">and</text>
+  <rect class="pend" x="334" y="120" width="34" height="22" rx="5"/><text class="w" x="351" y="135">how</text>
+  <line x1="176" y1="114" x2="176" y2="148" stroke="#c53030" stroke-width="2.2"/>
+  <text class="mk" x="176" y="160" style="text-anchor: middle">sentIndex</text>
+
+  <rect x="470" y="108" width="280" height="70" rx="9" fill="#fff5f5" stroke="#feb2b2"/>
+  <text x="480" y="126" style="font: 700 10px 'Segoe UI'; fill: #c53030">a position inside rewritten words</text>
+  <text class="ls" x="480" y="142" style="fill:#4a5568">moves back to the end of the last matched word,</text>
+  <text class="ls" x="480" y="156" style="fill:#4a5568">so ".NET 8" is pending again and is sent next time:</text>
+  <text class="ls" x="480" y="170" style="fill:#4a5568">a rewritten word may be sent twice, never lost.</text>
+  <text class="ls" x="20" y="186">grey = already sent · blue = pending (what the next Ctrl+Shift sends)</text>
+</svg>

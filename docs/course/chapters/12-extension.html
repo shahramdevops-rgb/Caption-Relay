@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch11" data-num="11" data-fa="معماری افزونه و service worker" data-en="The extension and its MV3 service worker">
+  <div class="chapter-head">
+    <div class="chapter-num">11</div>
+    <div>
+      <h1>معماری افزونه و service worker</h1>
+      <div class="sub">The Chrome extension — Manifest V3 pieces and a service worker that may die</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    افزونه با JavaScript ساده نوشته شده (بدون build و بدون framework) و سه محیط اجرایی دارد که فقط با پیام با هم حرف
+    می‌زنند: <b>service worker</b> که به اپ وصل است، <b>content script</b>ها که داخل تب Gemini اجرا می‌شوند، و صفحه‌ی
+    تنظیمات.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/ext-architecture.svg" alt="ext-architecture"><figcaption><b>شکل ۱۱-۱</b> — اجزای افزونه. خط پر: درخواست؛ خط‌چین: پیام برگشتی از صفحه یا تنظیمات.</figcaption></figure>
+
+  <h2>تقسیم کار <span class="en-tag">Who does what</span></h2>
+  <table>
+    <tr><th style="width:22%">بخش</th><th>مسئولیت</th></tr>
+    <tr><td>فایل <code>connection.js</code></td><td>اتصال، دست‌دادن، <code>ping</code>، <code>ack</code> و اتصال دوباره. هیچ فراخوانی <code>chrome.*</code> ندارد؛ WebSocket، تایمرها و تنظیمات به آن تزریق می‌شوند، پس در Node با یک سوکت جعلی تست می‌شود (۱۱ تست).</td></tr>
+    <tr><td>فایل <code>background.js</code></td><td>سیم‌کشی: ساختن اتصال، رساندن هر <code>send</code> به provider فعال، badge و alarm، و پیام‌های صفحه‌ی تنظیمات.</td></tr>
+    <tr><td>رجیستری providerها</td><td>نگاشت شناسه به provider؛ اپ و پروتکل فقط نام آن را می‌بینند (فصل ۱۲).</td></tr>
+    <tr><td>اسکریپت‌های صفحه</td><td>کار واقعی با DOM: پیدا کردن جعبه‌ی ورودی، گذاشتن متن، زدن دکمه، تأیید، صف حالت مشغول.</td></tr>
+    <tr><td>صفحه‌ی تنظیمات</td><td>پورت، توکن، provider، وضعیت زنده، دکمه‌ی Reconnect و دکمه‌ی Test.</td></tr>
+  </table>
+
+  <h2>کاری که MV3 سخت می‌کند <span class="en-tag">A worker that can be stopped</span></h2>
+  <p>
+    در Manifest V3 دیگر صفحه‌ی پس‌زمینه‌ی همیشگی وجود ندارد. Chrome یک service worker بیکار را بعد از حدود ۳۰ ثانیه
+    متوقف می‌کند و هر وقت رویدادی بیاید دوباره اجرا می‌کند؛ با توقف آن، WebSocket هم بسته می‌شود. طراحی سه لایه
+    محافظت دارد:
+  </p>
+  <ul>
+    <li>اپ هر ۲۰ ثانیه ping می‌فرستد. از Chrome 116 به بعد، فعالیت روی WebSocket عمر worker را تمدید می‌کند.</li>
+    <li>یک <code>chrome.alarms</code> هر ۳۰ ثانیه worker را بیدار می‌کند و <code>ensure()</code> را صدا می‌زند؛ اگر worker با وجود
+      همه‌چیز متوقف و دوباره اجرا شده باشد، اتصال برمی‌گردد.</li>
+    <li>اتصال دوباره با فاصله‌ی ۱، ۲ و سپس هر ۵ ثانیه تلاش می‌کند؛ اپ ممکن است هنوز بالا نیامده باشد.</li>
+  </ul>
+  <figure><img class="dia" src="../diagrams/connection-states.svg" alt="connection-states"><figcaption><b>شکل ۱۱-۲</b> — وضعیت‌های اتصال در افزونه و رویدادهایی که آن را بیدار می‌کنند.</figcaption></figure>
+
+  <div class="box why">
+    <div class="box-title">چرا یک «شماره‌ی نسل» (generation)؟</div>
+    <p>
+      وقتی تنظیمات عوض می‌شود، سوکت قبلی بسته و سوکت تازه‌ای باز می‌شود. رویدادهای سوکت قدیمی (مثلاً <code>onclose</code>) ممکن
+      است بعد از باز شدن سوکت جدید برسند و وضعیت را خراب کنند. هر اتصال یک شماره‌ی نسل دارد و رویدادهای نسل‌های قدیمی
+      نادیده گرفته می‌شوند. این یک الگوی ساده و رایج برای حذف race condition در کدهای رویدادمحور است.
+    </p>
+  </div>
+
+  <div class="cols">
+    <div class="box rule">
+      <div class="box-title">شناسه‌ی ثابت</div>
+      <p>کلید عمومی در manifest باعث می‌شود شناسه‌ی افزونه روی هر کامپیوتر یکی باشد؛ بررسی Origin در اپ روی همین تکیه دارد.</p>
+    </div>
+    <div class="box rule">
+      <div class="box-title">کمترین مجوز</div>
+      <p>فقط <code>storage</code>، <code>alarms</code> و <code>scripting</code>، و دسترسی میزبان فقط به <code>gemini.google.com</code>.</p>
+    </div>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده (فاز ۷)</div>
+    <p>اتصال بلافاصله بعد از وارد کردن توکن؛ بعد از راه‌اندازی دوباره‌ی اپ، اتصال دوباره ۰٫۹ ثانیه بعد از بالا آمدن سرور؛ بعد از
+      بستن و باز کردن Chrome، اتصال خودکار؛ چهار دقیقه بیکاری بدون قطع شدن.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The extension is plain JavaScript in three contexts that only exchange messages: the service worker holds the
+      WebSocket, content scripts work with the Gemini page, and the options page edits settings. The connection logic has
+      no chrome APIs — the socket, timers and settings are injected — so it is unit-tested in Node. Because MV3 can stop
+      an idle worker, I keep it alive with 20-second pings, wake it with a 30-second alarm that re-ensures the connection,
+      and reconnect with backoff. A generation counter ignores events from replaced sockets.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>What is the biggest difference between MV2 and MV3 for this project?</dt>
+      <dd>No persistent background page. The worker can be stopped at any time, so the connection must survive restarts:
+        keepalive pings, an alarm and idempotent reconnect.</dd>
+      <dt>How did you test extension code without a browser?</dt>
+      <dd>By keeping chrome.* out of the connection module and injecting WebSocket, timers and settings. Node tests drive it
+        with a fake socket; page code is tested separately on a fake chat page in a real browser.</dd>
+      <dt>What is the generation counter for?</dt>
+      <dd>Late events from a socket that was already replaced. Each connect increments it, and handlers from older
+        generations return immediately.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

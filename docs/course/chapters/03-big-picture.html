@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch2" data-num="2" data-fa="تصویر کلی: از صدا تا Gemini" data-en="The big picture: from speech to Gemini">
+  <div class="chapter-head">
+    <div class="chapter-num">2</div>
+    <div>
+      <h1>تصویر کلی: از صدا تا Gemini</h1>
+      <div class="sub">The big picture — the end-to-end pipeline</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    سیستم از دو برنامه تشکیل شده که با هم حرف می‌زنند: یک <b>اپ ویندوزی</b> که صدا را (از طریق Live Captions) به متن
+    و متن را به «پیام آماده‌ی ارسال» تبدیل می‌کند، و یک <b>افزونه‌ی Chrome</b> که آن پیام را داخل صفحه‌ی چت می‌گذارد و
+    ارسال می‌کند. پل بین این دو یک WebSocket محلی است.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/pipeline.svg" alt="pipeline"><figcaption><b>شکل ۲-۱</b> — خط لوله‌ی کامل. شماره‌ها ترتیب اتفاق‌ها را در یک ارسال نشان می‌دهند.</figcaption></figure>
+
+  <h2>نُه قدم یک ارسال <span class="en-tag">The nine steps</span></h2>
+  <ol>
+    <li>طرف مقابل حرف می‌زند؛ صدای سیستم پخش می‌شود.</li>
+    <li>برنامه‌ی Live Captions آن را به متن تبدیل و در پنجره‌ی خودش نشان می‌دهد (پنجره‌ای غلتان که مدام اصلاح می‌شود).</li>
+    <li>اپ هر <code>120 ms</code> متن آن پنجره را با UI Automation می‌خواند و در یک رونوشت واحد و رو به رشد ادغام می‌کند.</li>
+    <li>کاربر <code>Ctrl+Shift</code> را می‌زند؛ اپ «هر چه از آخرین ارسال اضافه شده» را از رونوشت برمی‌دارد (<code>Take</code>).</li>
+    <li>آن متن با یک شناسه‌ی یکتا به سرور WebSocket داخل اپ داده می‌شود.</li>
+    <li>پیام <code>send</code> از طریق WebSocket به service worker افزونه می‌رسد.</li>
+    <li>افزونه از روی provider فعال تصمیم می‌گیرد متن کجا برود و به content script تب Gemini می‌دهد.</li>
+    <li>اسکریپت داخل صفحه (content script) متن را در جعبه‌ی ورودی می‌گذارد، دکمه‌ی ارسال را می‌زند و بررسی می‌کند که واقعاً ارسال شد.</li>
+    <li>نتیجه (<code>ack</code>) برمی‌گردد؛ اپ ارسال را قطعی می‌کند یا متن را برای دفعه‌ی بعد نگه می‌دارد.</li>
+  </ol>
+
+  <h2>چرا دو برنامه؟ <span class="en-tag">Why two programs</span></h2>
+  <p>
+    هیچ‌کدام از دو محیط به‌تنهایی همه‌ی توانایی‌های لازم را ندارد. فقط یک برنامه‌ی دسکتاپ می‌تواند پنجره‌ی برنامه‌ی دیگری
+    را بخواند و کلید سراسری بگیرد؛ و فقط کدی که داخل صفحه اجرا می‌شود می‌تواند بدون جلو آوردن پنجره در آن تایپ کند.
+  </p>
+  <figure><img class="dia" src="../diagrams/split.svg" alt="split"><figcaption><b>شکل ۲-۲</b> — توانایی‌های هر طرف؛ هر کار به جایی سپرده شده که آن را بهتر انجام می‌دهد.</figcaption></figure>
+
+  <div class="box rejected">
+    <div class="box-title">گزینه‌هایی که بررسی و رد شدند</div>
+    <ul>
+      <li><b>شبیه‌سازی کیبورد یا کلیپ‌بورد</b> (یعنی SendKeys یا Ctrl+V در Chrome) — باید پنجره‌ی Chrome جلو بیاید؛ قانون «فوکوس جابه‌جا نشود» را می‌شکند و clipboard کاربر را هم خراب می‌کند.</li>
+      <li>استفاده از <b>Gemini API</b> — کلید API و هزینه لازم دارد، و کاربر Gemها، تاریخچه و رابط چت خودش را از دست می‌دهد. (برای آینده به‌عنوان یک provider دیگر در نظر گرفته شده.)</li>
+      <li>کنترل مرورگر با <b>Chrome DevTools Protocol</b> — مرورگر Chrome باید با پرچم remote-debugging اجرا شود؛ یعنی هر برنامه‌ی محلی می‌تواند مرورگر را کنترل کند. خطر امنیتی بزرگ.</li>
+      <li>ارتباط از راه <b>Native Messaging</b> — مرورگر Chrome خودش پروسه‌ی میزبان را اجرا و عمرش را کنترل می‌کند، در حالی که اپ باید مستقل و همیشه در حال ضبط باشد؛ نصبش هم ثبت رجیستری برای هر مرورگر لازم دارد. WebSocket ساده‌تر است و با یک کلاینت جعلی تست می‌شود.</li>
+    </ul>
+  </div>
+
+  <div class="box why">
+    <div class="box-title">چرا اپ سرور است و افزونه کلاینت؟</div>
+    <p>
+      افزونه‌ی Manifest V3 نمی‌تواند روی پورت گوش بدهد، ولی service worker آن می‌تواند به یک WebSocket وصل شود. اپ هم
+      همیشه در حال اجراست، در حالی که Chrome ممکن است بسته و باز شود. پس طبیعی است که طرفِ پایدار (اپ) منتظر بماند و
+      طرفِ گذرا (افزونه) هر بار که بیدار شد وصل شود.
+    </p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The system is split along capability lines. The desktop app owns everything that needs the OS: reading Live
+      Captions through UI Automation, the global hotkey, the transcript and the files. The browser extension owns
+      everything that needs the page: inserting and submitting text in a background tab without focus. They talk over a
+      loopback WebSocket where the always-running app is the server and the extension's service worker is the client.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why not simulate keystrokes into Chrome?</dt>
+      <dd>Keystrokes go to the focused window, so Chrome would have to come to the front. That breaks the main
+        requirement and also clobbers the clipboard.</dd>
+      <dt>Why WebSocket instead of Native Messaging?</dt>
+      <dd>With Native Messaging the browser launches and owns the host process; our app must run independently and keep
+        capturing. A loopback WebSocket keeps both lifetimes independent and is trivial to test with a fake client.</dd>
+      <dt>Where does the system cross a trust boundary?</dt>
+      <dd>At the WebSocket: anything on the machine, including web pages, could try to connect. That boundary gets
+        loopback binding, an Origin check and a token (chapter 9).</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

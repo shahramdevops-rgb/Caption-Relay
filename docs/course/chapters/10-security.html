@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch9" data-num="9" data-fa="امنیت پل محلی" data-en="Securing the local relay">
+  <div class="chapter-head">
+    <div class="chapter-num">9</div>
+    <div>
+      <h1>امنیت پل محلی</h1>
+      <div class="sub">Securing the local relay — loopback, Origin and token</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    سرور WebSocket تنها جایی است که سیستم از مرز اعتماد عبور می‌کند. هر کسی که به آن وصل شود می‌تواند متن دلخواه را به
+    اسم کاربر در Gemini ارسال کند، و هر کسی که به‌جای افزونه وصل شود، متن مکالمه را دریافت می‌کند. پس قبل از کد،
+    <b>مدل تهدید</b> نوشته شد: چه کسانی ممکن است سعی کنند وصل شوند؟
+  </p>
+
+  <figure><img class="dia" src="../diagrams/security-gates.svg" alt="security-gates"><figcaption><b>شکل ۹-۱</b> — سه دروازه‌ی پشت سر هم. هر نوع مهاجم در یکی از آن‌ها متوقف می‌شود؛ فقط افزونه‌ی خودمان از هر سه رد می‌شود.</figcaption></figure>
+
+  <h2>سه دروازه <span class="en-tag">Defense in depth</span></h2>
+  <ol>
+    <li><b>فقط loopback.</b> سرور Kestrel فقط روی <code>127.0.0.1</code> گوش می‌دهد، نه روی همه‌ی کارت‌های شبکه. کامپیوتر دیگری
+      در همان شبکه حتی نمی‌تواند اتصال را شروع کند.</li>
+    <li><b>بررسی Origin.</b> این مهم‌ترین نکته‌ی غیربدیهی است: WebSocket مشمول سیاست same-origin مرورگر نیست؛ هر صفحه‌ای
+      در هر تبی می‌تواند به <code>ws://127.0.0.1:47321</code> وصل شود. ولی مرورگر هدر <code>Origin</code> را خودش می‌گذارد و صفحه
+      نمی‌تواند آن را جعل کند. سرور فقط <code>chrome-extension://&lt;id&gt;</code> را می‌پذیرد و بقیه را با 403 رد می‌کند. با
+      <code>allowedExtensionIds</code> می‌شود فقط شناسه‌ی افزونه‌ی خودمان را مجاز کرد.</li>
+    <li><b>توکن.</b> یک برنامه‌ی محلی (خارج از مرورگر) هر هدری را که بخواهد می‌فرستد، پس Origin جلویش را نمی‌گیرد. اولین
+      پیام باید در کمتر از ۵ ثانیه <code>hello</code> با توکن درست باشد؛ وگرنه پیام <code>error</code> و بستن اتصال با کد 1008.
+      توکن ۳۲ بایت تصادفی رمزنگاری‌شده است (۴۳ کاراکتر base64url، یعنی ۲۵۶ بیت) و با
+      <code>CryptographicOperations.FixedTimeEquals</code> مقایسه می‌شود.</li>
+  </ol>
+
+  <div class="box why">
+    <div class="box-title">چرا مقایسه‌ی زمان‌ثابت؟</div>
+    <p>
+      مقایسه‌ی معمولی رشته در اولین کاراکتر متفاوت متوقف می‌شود؛ پس زمان پاسخ، کمی درباره‌ی درستی پیشوند توکن اطلاعات
+      می‌دهد. روی loopback این حمله بعید است، ولی هزینه‌ی جلوگیری از آن یک خط کد است. برای کد امنیتی، انتخاب پیش‌فرض
+      درست ارزان‌تر از بحث درباره‌ی احتمال است.
+    </p>
+  </div>
+
+  <h2>جزئیات دیگری که مهم بودند <span class="en-tag">Smaller decisions</span></h2>
+  <ul>
+    <li>شناسه‌ی افزونه ثابت است: فایل manifest یک کلید عمومی (<code>key</code>) دارد، پس شناسه روی هر کامپیوتر همان
+      <code>hpmjjnjmlhbolpmeafdkmdldlfmoaaee</code> است و فهرست مجاز معنا پیدا می‌کند.</li>
+    <li>لاگ‌ها هرگز متن مکالمه را ندارند، فقط طول آن را. توکن هم فقط به شکل fingerprint (هشت حرف اول SHA-256) نوشته
+      می‌شود تا بشود توکن اپ و افزونه را مقایسه کرد بدون اینکه فاش شود.</li>
+    <li>فایل‌های <code>config.json</code>، <code>sessions</code> و <code>logs</code> در <code>.gitignore</code> هستند.</li>
+    <li>اتصالی که ۶۵ ثانیه هیچ چیزی نفرستد (حتی pong) بسته می‌شود؛ اتصال‌های مرده منابع نگه نمی‌دارند.</li>
+    <li>اگر چند افزونه وصل باشند، آخرین اتصال ارسال‌ها را می‌گیرد و بقیه به‌عنوان پشتیبان باز می‌مانند.</li>
+  </ul>
+
+  <div class="box rejected">
+    <div class="box-title">خارج از مدل تهدید (آگاهانه)</div>
+    <p>
+      برنامه‌ی مخربی که با همان حساب کاربری اجرا می‌شود، می‌تواند <code>config.json</code> را بخواند یا اصلاً صفحه‌کلید را
+      ضبط کند؛ هیچ اپ دسکتاپی نمی‌تواند در برابر آن از خودش دفاع کند. این مرز صریحاً نوشته شد تا پیچیدگی بی‌فایده
+      (مثلاً رمزنگاری توکن روی دیسک) اضافه نشود.
+    </p>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">تست‌شده</div>
+    <p>تست‌های یکپارچه با سوکت واقعی: توکن غلط، نبودن hello، بودن Origin وب، Origin بدون شناسه و شناسه‌ی خارج از فهرست همه رد
+      شدند. در اجرای واقعی هم توکن غلط و Origin وب رد شدند.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The WebSocket is the only trust boundary, so I wrote a threat model first. Binding to loopback stops other machines.
+      Because WebSockets are not covered by the same-origin policy, any web page could connect to localhost, so the
+      server only accepts chrome-extension origins, which pages cannot forge. A local process can forge the Origin header,
+      so the first message must carry a 256-bit random token, compared in constant time. Logs never contain transcript
+      text, and the token only appears as a hash fingerprint.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why is binding to localhost not enough?</dt>
+      <dd>Every web page you open runs on the same machine. Without an Origin check, a malicious page could connect to
+        the relay and inject text into your chat.</dd>
+      <dt>Why both Origin and token?</dt>
+      <dd>They stop different attackers: Origin stops browser pages, which cannot fake it; the token stops native processes,
+        which can fake any header but do not know the secret.</dd>
+      <dt>What is explicitly out of scope?</dt>
+      <dd>Malware running as the same user. It could read the config or log keystrokes anyway, so defending against it in
+        the app would only add complexity.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

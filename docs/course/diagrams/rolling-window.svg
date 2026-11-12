@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 236">
+  <style>
+    .w { font: 10px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .g { font: 10px 'Segoe UI', sans-serif; fill: #a0aec0; text-anchor: middle; }
+    .l { font: 700 8.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .ls { font: 8px 'Segoe UI', sans-serif; fill: #718096; }
+    .n { font: 9px 'Segoe UI', sans-serif; fill: #718096; }
+    .chip { fill: #fff; stroke: #cbd5e0; }
+    .ghost { fill: none; stroke: #e2e8f0; stroke-dasharray: 3 2; }
+    .bad { fill: #fff5f5; stroke: #fc8181; }
+    .good { fill: #eaf7ef; stroke: #48bb78; }
+  </style>
+
+  <!-- snapshot 1 -->
+  <text class="l" x="4" y="38">snapshot 1</text><text class="ls" x="4" y="50">10:00:01</text>
+  <rect x="56" y="22" width="410" height="36" rx="9" fill="#fff8f2" stroke="#c05621"/>
+  <rect class="chip" x="60" y="29" width="40" height="22" rx="5"/><text class="w" x="80" y="44">Tell</text>
+  <rect class="chip" x="104" y="29" width="34" height="22" rx="5"/><text class="w" x="121" y="44">me</text>
+  <rect class="chip" x="142" y="29" width="48" height="22" rx="5"/><text class="w" x="166" y="44">about</text>
+  <rect class="chip" x="194" y="29" width="42" height="22" rx="5"/><text class="w" x="215" y="44">your</text>
+  <rect class="chip" x="240" y="29" width="78" height="22" rx="5"/><text class="w" x="279" y="44">experience</text>
+  <rect class="chip" x="322" y="29" width="42" height="22" rx="5"/><text class="w" x="343" y="44">with</text>
+  <rect class="bad" x="368" y="29" width="92" height="22" rx="5"/><text class="w" x="414" y="44">dot net eight</text>
+
+  <!-- snapshot 2 -->
+  <text class="l" x="4" y="94">snapshot 2</text><text class="ls" x="4" y="106">10:00:03</text>
+  <rect class="ghost" x="60" y="85" width="40" height="22" rx="5"/><text class="g" x="80" y="100">Tell</text>
+  <rect class="ghost" x="104" y="85" width="34" height="22" rx="5"/><text class="g" x="121" y="100">me</text>
+  <rect x="138" y="78" width="458" height="36" rx="9" fill="#fff8f2" stroke="#c05621"/>
+  <rect class="chip" x="142" y="85" width="48" height="22" rx="5"/><text class="w" x="166" y="100">about</text>
+  <rect class="chip" x="194" y="85" width="42" height="22" rx="5"/><text class="w" x="215" y="100">your</text>
+  <rect class="chip" x="240" y="85" width="78" height="22" rx="5"/><text class="w" x="279" y="100">experience</text>
+  <rect class="chip" x="322" y="85" width="42" height="22" rx="5"/><text class="w" x="343" y="100">with</text>
+  <rect class="good" x="368" y="85" width="92" height="22" rx="5"/><text class="w" x="414" y="100">.NET 8</text>
+  <rect class="chip" x="464" y="85" width="38" height="22" rx="5"/><text class="w" x="483" y="100">and</text>
+  <rect class="chip" x="506" y="85" width="38" height="22" rx="5"/><text class="w" x="525" y="100">how</text>
+  <rect class="chip" x="548" y="85" width="44" height="22" rx="5"/><text class="w" x="570" y="100">you</text>
+
+  <!-- snapshot 3 -->
+  <text class="l" x="4" y="150">snapshot 3</text><text class="ls" x="4" y="162">10:00:05</text>
+  <rect class="ghost" x="60" y="141" width="40" height="22" rx="5"/><text class="g" x="80" y="156">Tell</text>
+  <rect class="ghost" x="104" y="141" width="34" height="22" rx="5"/><text class="g" x="121" y="156">me</text>
+  <rect class="ghost" x="142" y="141" width="48" height="22" rx="5"/><text class="g" x="166" y="156">about</text>
+  <rect class="ghost" x="194" y="141" width="42" height="22" rx="5"/><text class="g" x="215" y="156">your</text>
+  <rect class="ghost" x="240" y="141" width="78" height="22" rx="5"/><text class="g" x="279" y="156">experience</text>
+  <rect x="318" y="134" width="370" height="36" rx="9" fill="#fff8f2" stroke="#c05621"/>
+  <rect class="chip" x="322" y="141" width="42" height="22" rx="5"/><text class="w" x="343" y="156">with</text>
+  <rect class="chip" x="368" y="141" width="92" height="22" rx="5"/><text class="w" x="414" y="156">.NET 8</text>
+  <rect class="chip" x="464" y="141" width="38" height="22" rx="5"/><text class="w" x="483" y="156">and</text>
+  <rect class="chip" x="506" y="141" width="38" height="22" rx="5"/><text class="w" x="525" y="156">how</text>
+  <rect class="chip" x="548" y="141" width="44" height="22" rx="5"/><text class="w" x="570" y="156">you</text>
+  <rect class="chip" x="596" y="141" width="52" height="22" rx="5"/><text class="w" x="622" y="156">tested</text>
+  <rect class="chip" x="652" y="141" width="32" height="22" rx="5"/><text class="w" x="668" y="156">it.</text>
+
+  <text class="n" x="604" y="40">rewritten later →</text>
+  <text class="n" x="612" y="100">scrolled off ←</text>
+
+  <line x1="8" y1="184" x2="752" y2="184" stroke="#e2e8f0"/>
+
+  <!-- transcript -->
+  <text class="l" x="4" y="212" style="fill:#2b6cb0">transcript</text><text class="ls" x="4" y="224">in the app</text>
+  <rect x="56" y="194" width="632" height="38" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.4"/>
+  <rect class="chip" x="60" y="202" width="40" height="22" rx="5"/><text class="w" x="80" y="217">Tell</text>
+  <rect class="chip" x="104" y="202" width="34" height="22" rx="5"/><text class="w" x="121" y="217">me</text>
+  <rect class="chip" x="142" y="202" width="48" height="22" rx="5"/><text class="w" x="166" y="217">about</text>
+  <rect class="chip" x="194" y="202" width="42" height="22" rx="5"/><text class="w" x="215" y="217">your</text>
+  <rect class="chip" x="240" y="202" width="78" height="22" rx="5"/><text class="w" x="279" y="217">experience</text>
+  <rect class="chip" x="322" y="202" width="42" height="22" rx="5"/><text class="w" x="343" y="217">with</text>
+  <rect class="good" x="368" y="202" width="92" height="22" rx="5"/><text class="w" x="414" y="217">.NET 8</text>
+  <rect class="chip" x="464" y="202" width="38" height="22" rx="5"/><text class="w" x="483" y="217">and</text>
+  <rect class="chip" x="506" y="202" width="38" height="22" rx="5"/><text class="w" x="525" y="217">how</text>
+  <rect class="chip" x="548" y="202" width="44" height="22" rx="5"/><text class="w" x="570" y="217">you</text>
+  <rect class="chip" x="596" y="202" width="52" height="22" rx="5"/><text class="w" x="622" y="217">tested</text>
+  <rect class="chip" x="652" y="202" width="32" height="22" rx="5"/><text class="w" x="668" y="217">it.</text>
+  <text class="n" x="698" y="210">nothing lost,</text><text class="n" x="698" y="223">rewrite kept</text>
+</svg>

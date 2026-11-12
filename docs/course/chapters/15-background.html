@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch14" data-num="14" data-fa="تب پس‌زمینه و کند شدن تایمرها" data-en="Background tabs and timer throttling">
+  <div class="chapter-head">
+    <div class="chapter-num">14</div>
+    <div>
+      <h1>تب پس‌زمینه و کند شدن تایمرها</h1>
+      <div class="sub">Delivering into hidden, minimized, throttled or discarded tabs</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    در استفاده‌ی واقعی، تب Gemini تقریباً هیچ‌وقت جلوی چشم نیست: پشت تب‌های دیگر است، یا پنجره‌ی Chrome کوچک شده، یا
+    ساعت‌ها دست نخورده. این پرریسک‌ترین بخش پروژه بود، چون Chrome برای صرفه‌جویی در باتری و حافظه با تب‌های پنهان سه کار
+    می‌کند: <b>کند کردن تایمرها</b>، <b>یخ زدن</b> (freeze) و <b>بیرون انداختن از حافظه</b> (discard).
+  </p>
+
+  <h2>اول آزمایش، بعد طراحی <span class="en-tag">Experiments first</span></h2>
+  <p>
+    قبل از هر تغییری، چند آزمایش روی Chrome 157 انجام شد تا معلوم شود کدام ترس واقعی است:
+  </p>
+  <ul>
+    <li>دستور <code>execCommand</code> و کلیک روی دکمه در تب پنهان و بدون فوکوس <b>کار می‌کنند</b>. پس نیازی به جلو آوردن تب نیست.</li>
+    <li>تایمرها در تب پنهان واقعاً تا حدود یک ثانیه عقب می‌افتند: ارسال در پنجره‌ی minimize شده ۱۰۶۴ میلی‌ثانیه طول می‌کشید.</li>
+    <li>بعد از ۷ دقیقه minimize (کندسازی شدید)، تحویل هنوز کار کرد و تب نه یخ زد و نه discard شد.</li>
+    <li>جمینای در تب پنهان به تولید جواب ادامه می‌دهد و صف همان‌جا خالی شد (۲۹ ثانیه). تب بعد از حدود ۴ ساعت در پس‌زمینه هنوز سالم بود.</li>
+  </ul>
+
+  <figure><img class="dia" src="../diagrams/throttling.svg" alt="throttling"><figcaption><b>شکل ۱۴-۱</b> — همان تحویل با دو روش انتظار. تایمرها در تب پنهان کند می‌شوند؛ ناظر DOM نه.</figcaption></figure>
+
+  <div class="box why">
+    <div class="box-title">چرا MutationObserver به جای تایمر؟</div>
+    <p>
+      کد تحویل باید منتظر چیزهایی بماند: ظاهر شدن دکمه‌ی ارسال، خالی شدن جعبه، یا آمدن نوبت تازه. نسخه‌ی اول با تایمرهای
+      کوتاه بررسی می‌کرد، و هر بررسی در تب پنهان یک ثانیه عقب می‌افتاد. تابع کمکی انتظار حالا با هر تغییر DOM شرط را
+      دوباره بررسی می‌کند؛ تایمر فقط برای مهلت نهایی است، که دیر شدنش فقط در حالت شکست مهم است. نتیجه: ۶۹ میلی‌ثانیه به جای
+      ۱۰۶۴ میلی‌ثانیه.
+    </p>
+  </div>
+
+  <h2>انتخاب و نگهداری تب مقصد <span class="en-tag">Choosing and protecting the tab</span></h2>
+  <figure><img class="dia" src="../diagrams/tab-decision.svg" alt="tab-decision"><figcaption><b>شکل ۱۴-۲</b> — تصمیم service worker برای هر تحویل. هر مسیر کند (تب تازه، reload) فوراً queued جواب می‌دهد و نتیجه را بعداً گزارش می‌کند.</figcaption></figure>
+  <ul>
+    <li>تب مقصد از discard شدن محافظت می‌شود (<code>autoDiscardable: false</code>)، پس Memory Saver آن را بیرون نمی‌اندازد.</li>
+    <li>قبل از تحویل یک ping سریع فرستاده می‌شود. اسکریپت زنده در چند میلی‌ثانیه جواب می‌دهد؛ تب یخ‌زده هرگز. اگر در یک ثانیه
+      جوابی نیامد، تب reload می‌شود — گفت‌وگو را Google نگه می‌دارد — و متن بعد از بارگذاری تحویل داده می‌شود.</li>
+    <li>اگر تب از قبل از نصب یا reload افزونه باز بوده و اسکریپتی ندارد، اسکریپت با <code>chrome.scripting</code> تزریق می‌شود.</li>
+    <li>اگر هیچ تب Gemini‌ای نباشد، یک چت تازه در یک تب پس‌زمینه باز می‌شود، باز هم بدون گرفتن فوکوس.</li>
+  </ul>
+
+  <div class="box rejected">
+    <div class="box-title">قابل تست نبود (و صادقانه نوشته شد)</div>
+    <p>یک discard یا freeze واقعی توسط Memory Saver در محیط تست رخ نداد؛ اولی با <code>autoDiscardable</code> جلوگیری می‌شود و هر
+      دو با مسیر reload پوشش داده شده‌اند. صفحه‌ی هنگ‌کرده (بدون جواب به ping) با شبیه‌سازی تست شد: تب reload شد و متن در
+      همان گفت‌وگو تحویل داده شد (۹ ثانیه).</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>This was the highest-risk part, so I ran experiments before designing. They showed that execCommand and clicks work in
+      a hidden tab without focus, but that Chrome throttles timers there to about one second. I replaced timer polling with
+      a MutationObserver-based wait, which took a minimized-window send from 1,064 ms to 69 ms. The target tab is marked
+      not auto-discardable, a one-second ping detects frozen pages, and a discarded or frozen tab is reloaded and the text
+      delivered after load, reported as queued plus a later result.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>What does Chrome do to background tabs?</dt>
+      <dd>It throttles timers (about once per second, and much more after minutes hidden), can freeze pages, and can discard
+        them to save memory. Each needs its own answer.</dd>
+      <dt>Why did the MutationObserver fix the latency?</dt>
+      <dd>Observer callbacks run when the DOM changes and are not throttled like timers. The wait no longer depends on when a
+        delayed timer happens to fire.</dd>
+      <dt>How do you detect a frozen tab?</dt>
+      <dd>A ping with a one-second timeout. A live content script answers in a few milliseconds; a frozen or hung page does
+        not, so it is reloaded.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

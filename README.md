@@ -26,6 +26,7 @@ window you are working in.
 | `tests/` | xUnit tests (C#), Node tests and a browser test page for the extension, real Live Captions recordings. |
 | `tools/` | Test helpers: caption recorder, TTS speaker, fake extension client, key/UI test scripts. |
 | `docs/protocol.md` | The app ↔ extension WebSocket protocol. |
+| `docs/CaptionRelay-course.pdf` | Illustrated design course (Persian, with English interview summaries); sources in `docs/course/`. |
 | `ROADMAP.md` | Phases, what was built and what was measured. |
 
 ## Requirements

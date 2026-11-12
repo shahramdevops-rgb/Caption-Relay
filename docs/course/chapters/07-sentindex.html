@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch6" data-num="6" data-fa="sentIndex، ticket و فایل جلسه" data-en="sentIndex, send tickets and the session file">
+  <div class="chapter-head">
+    <div class="chapter-num">6</div>
+    <div>
+      <h1>اشاره‌گر ارسال، ticket و فایل جلسه</h1>
+      <div class="sub">sentIndex, send tickets (confirm / restore) and the session file</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    حالا که یک رونوشت قابل‌اعتماد داریم، «چه چیزی فرستاده شود» تقریباً ساده است: یک عدد به نام <code>sentIndex</code>
+    رونوشت را به دو بخش تقسیم می‌کند — قبل از آن فرستاده شده، بعد از آن <b>pending</b> است. سخت‌ترین بخش این است که
+    ارسال ممکن است شکست بخورد، و آن وقت هیچ کلمه‌ای نباید گم شود.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/sentindex.svg" alt="sentindex"><figcaption><b>شکل ۶-۱</b> — بالا: رونوشت و اشاره‌گرهایش در لحظه‌ای که یک ارسال در راه است. پایین: فایل جلسه، که فقط متن پایدار و ارسال‌های قطعی را می‌نویسد.</figcaption></figure>
+
+  <h2>ارسال به شکل ticket <span class="en-tag">Optimistic take, confirm or restore</span></h2>
+  <p>
+    با فشردن کلید، متد <code>Take</code> متن pending را برمی‌دارد و یک <b>ticket</b> می‌سازد که دو عدد دارد: جای قبلی
+    <code>sentIndex</code> و جای برش (انتهای متن برداشته‌شده). <code>sentIndex</code> همان لحظه به انتها می‌رود — یعنی
+    خوش‌بینانه فرض می‌شود ارسال موفق است. بعد یکی از دو اتفاق می‌افتد:
+  </p>
+  <ul>
+    <li>تأیید (<code>Confirm</code>) — افزونه گفت ارسال شد؛ برچسب <code>[SENT]</code> در فایل جلسه قطعی می‌شود.</li>
+    <li>بازگرداندن (<code>Restore</code>) — خطا، بی‌جوابی یا قطع اتصال؛ <code>sentIndex</code> به جای قبلی ticket برمی‌گردد و آن
+      متن دوباره pending می‌شود تا با ارسال بعدی، همراه حرف‌های تازه، برود.</li>
+  </ul>
+  <figure><img class="dia" src="../diagrams/ticket-states.svg" alt="ticket-states"><figcaption><b>شکل ۶-۲</b> — چرخه‌ی عمر یک ticket. هر مسیری به «قطعی» یا «بازگشته» ختم می‌شود؛ حالت سومی که متن در آن گم شود وجود ندارد.</figcaption></figure>
+
+  <div class="box why">
+    <div class="box-title">چرا خوش‌بینانه، و چرا با min؟</div>
+    <ul>
+      <li>اگر <code>sentIndex</code> تا رسیدن جواب جابه‌جا نمی‌شد، فشار دوم کلید در همان چند میلی‌ثانیه همان متن را دوباره
+        می‌فرستاد. با جابه‌جایی فوری، فشار دوم فقط حرف‌های تازه را برمی‌دارد.</li>
+      <li>ممکن است چند ارسال هم‌زمان در راه باشند (مثلاً یکی در صف Gemini). بازگرداندن با
+        <code>min(sentIndex, Previous)</code> اشاره‌گر را فقط عقب می‌برد، هرگز جلو؛ پس اگر یکی از آن‌ها شکست بخورد، متن آن
+        و هر چه بعدش آمده دوباره pending می‌شود. در بدترین حالت چیزی دو بار می‌رود، ولی هیچ چیز جا نمی‌ماند.</li>
+      <li>همه‌ی این اعداد (جای ticketها، برچسب‌ها، پیشرفت فایل) در هر ادغام از <code>MapIndex</code> رد می‌شوند؛ پس
+        بازنویسی‌های Live Captions هیچ‌کدام را خراب نمی‌کند.</li>
+    </ul>
+  </div>
+
+  <h2>کلید رد کردن و متن شروع <span class="en-tag">Skip and startup text</span></h2>
+  <p>
+    کلید <code>F9</code> متد <code>Skip</code> را صدا می‌زند: <code>sentIndex</code> به انتها می‌رود، بدون ارسال، و برچسب
+    <code>[SKIPPED]</code> در فایل نوشته می‌شود. متنی که هنگام شروع اپ روی صفحه است هم دقیقاً همین‌طور رفتار می‌شود.
+    شرط حداقل طول (<code>minSendChars</code>، پیش‌فرض ۳) جلوی ارسال‌های بی‌معنی مثل یک <code>ok</code> را می‌گیرد: پیام <code>Nothing new</code>.
+  </p>
+
+  <h2>فایل جلسه <span class="en-tag">The session file</span></h2>
+  <ul>
+    <li>هر جلسه یک فایل متنی <code>sessions/yyyy-MM-dd_HHmm.txt</code> است که کل گفت‌وگو با برچسب‌های زمان‌دار را دارد؛ حتی
+      وقتی Live Captions متن را از صفحه دور ریخته باشد.</li>
+    <li>چهل کلمه‌ی آخر تا وقتی گفتار ادامه دارد نوشته نمی‌شود، چون ممکن است هنوز بازنویسی شود؛ بعد از ۵ ثانیه سکوت همه‌چیز
+      نوشته می‌شود. فایل فقط به انتها اضافه می‌شود و هرگز بازنویسی نمی‌شود.</li>
+    <li>برش یک ارسال تأییدنشده جلوی نوشتن را می‌گیرد، تا برچسب <code>[SENT]</code> فقط برای ارسال‌هایی بیاید که واقعاً رسیده‌اند.</li>
+    <li>فایل‌های قدیمی‌تر از ۳۰ روز خودکار پاک می‌شوند؛ پوشه‌ی <code>sessions</code> در git نادیده گرفته می‌شود.</li>
+  </ul>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده (فاز ۱۱)</div>
+    <p>حدود چهار دقیقه گفتار بدون فشردن هیچ کلیدی، سپس یک <code>Ctrl+Shift</code>: یک پیام ۶۲۳ کلمه‌ای (متن اصلی ۶۲۲ کلمه، ۹۷٫۴٪
+      به ترتیب درست)، ۸۰ میلی‌ثانیه بعد از فشردن کلید در Gemini ارسال شد. افزونه خاموش: پیام <code>not connected</code> و متن نگه
+      داشته شد؛ بعد از روشن شدن، متن نگه‌داشته‌شده همراه متن تازه رفت.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The transcript is one string and sentIndex splits it into sent and pending. A send is a ticket: Take moves sentIndex
+      to the end optimistically and records where it was. On a successful ack the ticket is confirmed; on any failure it is
+      restored, so the text becomes pending again and goes out with the next send. Every stored position is remapped on each
+      merge. The session file is append-only, holds back the last 40 words while they may still change, and only writes a
+      SENT marker once delivery is confirmed.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>Why not move sentIndex only after the ack?</dt>
+      <dd>A second key press during the round trip would send the same text twice. Moving it immediately and restoring on
+        failure gives exactly-once in the normal case and at-least-once on failure.</dd>
+      <dt>What delivery guarantee do you give?</dt>
+      <dd>At-least-once for every word: a failed or unanswered send is restored, so text can be repeated in rare cases but is
+        never dropped.</dd>
+      <dt>Why hold back the last 40 words from the file?</dt>
+      <dd>Live Captions may still rewrite them, and the file is append-only. After five seconds of silence everything is final
+        and gets written.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

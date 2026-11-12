@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch15" data-num="15" data-fa="رابط کاربری بدون فوکوس" data-en="A UI that never takes focus">
+  <div class="chapter-head">
+    <div class="chapter-num">15</div>
+    <div>
+      <h1>رابط کاربری بدون فوکوس</h1>
+      <div class="sub">A UI that never takes focus — the indicator pill and the tray</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    اپ تقریباً رابط کاربری ندارد، و همین عمدی است. یک آیکون در tray و یک نشانگر کوچک کپسولی شکل (pill) که همیشه روی صفحه
+    است: <code>● Captions ● Gemini · 42 words pending</code>. سخت‌ترین شرط این بود که هیچ‌کدام، حتی با کلیک، فوکوس کیبورد را
+    از پنجره‌ای که کاربر در آن کار می‌کند نگیرند.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/nofocus.svg" alt="nofocus"><figcaption><b>شکل ۱۵-۱</b> — پنجره‌ی کاربر فوکوس را نگه می‌دارد؛ نشانگر، هوک کیبورد و تحویل به چت هر کدام با سازوکار خودش از گرفتن فوکوس دوری می‌کند.</figcaption></figure>
+
+  <h2>پنجره‌ای که فعال نمی‌شود <span class="en-tag">A window that never activates</span></h2>
+  <ul>
+    <li>ویژگی <code>ShowWithoutActivation</code> باعث می‌شود نشان دادن پنجره آن را فعال نکند.</li>
+    <li>استایل <code>WS_EX_NOACTIVATE</code> به ویندوز می‌گوید این پنجره هرگز پنجره‌ی فعال نشود؛ <code>WS_EX_TOOLWINDOW</code> آن را
+      از نوار وظیفه و از <code>Alt+Tab</code> بیرون نگه می‌دارد.</li>
+    <li>حالت «همیشه رو» با <code>WS_EX_TOPMOST</code> در <code>CreateParams</code> تنظیم می‌شود، نه با ویژگی <code>TopMost</code> در
+      WinForms، چون آن setter ممکن است پنجره را فعال کند.</li>
+    <li>پیام <code>WM_MOUSEACTIVATE</code> با <code>MA_NOACTIVATE</code> جواب داده می‌شود؛ پس کلیک (برای باز کردن پنل متن pending) و
+      کشیدن (برای جابه‌جا کردن) فوکوس را تغییر نمی‌دهند.</li>
+  </ul>
+
+  <div class="box why">
+    <div class="box-title">چرا رنگ و صدا به جای پنجره؟</div>
+    <p>
+      کاربر وسط گفت‌وگوست و نباید چیزی بخواند یا ببندد. نشانگر برای ۱٫۵ ثانیه پیام کوتاهی مثل <code>Sent ✓</code> یا <code>Queued</code> نشان می‌دهد
+      و یک صدای کوتاه (برای ارسال، صف و خطا متفاوت) پخش می‌شود. صداها در زمان اجرا ساخته می‌شوند و آیکون tray هم (با نقطه‌ی
+      سبز یا قرمز) در زمان اجرا کشیده می‌شود؛ هیچ فایل منبع اضافه‌ای لازم نیست.
+    </p>
+  </div>
+
+  <h2>جزئیات کوچک ولی مهم <span class="en-tag">Details</span></h2>
+  <ul>
+    <li>جای نشانگر ذخیره می‌شود و هنگام شروع با مانیتورهای فعلی مقایسه می‌شود تا روی یک مانیتور جداشده گم نشود.</li>
+    <li>منوی راست‌کلیک ناچار برای لحظه‌ای فعال می‌شود؛ بعد از بسته شدن، فوکوس به پنجره‌ی قبلی برگردانده می‌شود.</li>
+    <li>گزینه‌ی <code>Hide Live Captions window</code> پنجره‌ی Live Captions را بیرون از صفحه می‌برد (زیرنویس ادامه دارد) و هنگام خروج آن را
+      دقیقاً سر جایش برمی‌گرداند.</li>
+    <li>عنوان پنجره‌ی نشانگر متن آن را تکرار می‌کند تا تست‌های خودکار بتوانند آن را با UI Automation بخوانند.</li>
+  </ul>
+
+  <div class="box fact">
+    <div class="box-title">تست‌شده (فاز ۶ و ۱۱)</div>
+    <p>اسکریپت <code>tools/keytest/ui-test.ps1</code>: کلیک و کلیک سه‌گانه پنل را باز و بسته کرد، کشیدن جای نشانگر را عوض کرد و بعد
+      از راه‌اندازی دوباره همان‌جا ماند، و در همه‌ی موارد پنجره‌ی جلو عوض نشد. در تست پایانی، فوکوس در طول هر ارسال روی پنجره‌ی
+      در حال استفاده ماند.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The user is in a meeting, so nothing may steal focus. The indicator is a custom-painted WinForms window that shows
+      without activation, uses the NOACTIVATE and TOOLWINDOW extended styles, sets TOPMOST in CreateParams because the
+      TopMost setter can activate the window, and answers WM_MOUSEACTIVATE with MA_NOACTIVATE so clicks and drags never
+      move focus. Feedback is a short flash plus a tone instead of dialogs, and the chat text is inserted through the DOM,
+      never as keystrokes.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>How do you make a clickable window that never takes focus on Windows?</dt>
+      <dd>WS_EX_NOACTIVATE, ShowWithoutActivation, and returning MA_NOACTIVATE from WM_MOUSEACTIVATE; TOPMOST is set in
+        CreateParams rather than through the TopMost property.</dd>
+      <dt>How did you verify "focus never changes"?</dt>
+      <dd>A UI test script records the foreground window, clicks, drags and opens the menu on the indicator, and checks that
+        the foreground window is the same afterwards.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

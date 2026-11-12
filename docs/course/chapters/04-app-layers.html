@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch3" data-num="3" data-fa="داخل اپ: لایه‌ها و نخ‌ها" data-en="Inside the app: layers and threads">
+  <div class="chapter-head">
+    <div class="chapter-num">3</div>
+    <div>
+      <h1>داخل اپ: لایه‌ها و نخ‌ها</h1>
+      <div class="sub">Inside the Windows app — layers, seams and threads</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    اپ ویندوزی حدود ۳۵۰۰ خط C# است و در هفت پوشه سازمان یافته. ایده‌ی اصلی ساده است: <b>منطق خالص</b> (که فقط داده
+    می‌گیرد و تصمیم می‌گیرد) از <b>آداپتورها</b> (که با ویندوز، شبکه و فایل حرف می‌زنند) جداست، تا بشود منطق را بدون
+    Live Captions، بدون کیبورد واقعی و بدون شبکه تست کرد.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/layers.svg" alt="layers"><figcaption><b>شکل ۳-۱</b> — سه لایه و ماژول‌های مشترک. خط‌چین‌های بنفش، اینترفیس‌هایی‌اند که منطق را از دنیای بیرون جدا می‌کنند.</figcaption></figure>
+
+  <h2>پوشه‌ها و مسئولیت‌ها <span class="en-tag">Folders</span></h2>
+  <table>
+    <tr><th style="width:17%">پوشه</th><th>مسئولیت</th></tr>
+    <tr><td><code>Captions</code></td><td>خواندن Live Captions، ادغام snapshotها در یک رونوشت، <code>sentIndex</code>، فایل جلسه</td></tr>
+    <tr><td><code>Input</code></td><td>هوک سطح پایین کیبورد و ماشین حالت کلید میان‌بر</td></tr>
+    <tr><td><code>Sending</code></td><td>کنترل‌کننده‌ی ارسال و اینترفیس <code>IMessageSender</code></td></tr>
+    <tr><td><code>Relay</code></td><td>سرور WebSocket روی loopback (پیاده‌سازی <code>IMessageSender</code>)</td></tr>
+    <tr><td><code>UI</code></td><td>آیکون tray، منو، نشانگر کوچک (pill)، صداها</td></tr>
+    <tr><td><code>Config</code></td><td>خواندن و ترمیم <code>config.json</code>، ساخت توکن</td></tr>
+    <tr><td><code>Infrastructure</code></td><td>لاگ چرخشی، جلوگیری از اجرای دو نسخه (mutex)، مسیرها، شروع با ویندوز</td></tr>
+  </table>
+
+  <div class="box why">
+    <div class="box-title">چرا این تقسیم‌بندی؟</div>
+    <ul>
+      <li><b>جداسازی منطق از سیستم‌عامل.</b> <code>HotkeyStateMachine</code> هیچ API ویندوزی صدا نمی‌زند؛ فقط «این کلید، بالا یا پایین،
+        و وضعیت بقیه‌ی کلیدها» را می‌گیرد. <code>KeyboardHook</code> فقط رویدادها را از ویندوز می‌گیرد و به آن می‌دهد. همین الگو
+        در <code>TranscriptMerger</code> در برابر <code>CaptionsReader</code> تکرار شده.</li>
+      <li><b>درز (seam) در مرزها.</b> <code>ICaptionSource</code> و <code>IMessageSender</code> اجازه می‌دهند در تست یک منبع متن یا یک
+        فرستنده‌ی جعلی جایگزین شود. ساعت هم تزریق می‌شود (<code>Func&lt;DateTime&gt;</code>) تا تست‌های زمانی بدون صبر کردن اجرا شوند.</li>
+      <li><b>بدون DI container.</b> برای یک اپ کوچک، سیم‌کشی صریح در <code>Program.cs</code> خواناتر است: ترتیب ساخته شدن همه‌چیز
+        در یک صفحه دیده می‌شود.</li>
+    </ul>
+  </div>
+
+  <h2>چهار نخ و یک قانون <span class="en-tag">Threads</span></h2>
+  <p>
+    هر نخ صاحب یک کار است. هر چیزی که به رابط کاربری دست می‌زند، با <code>BeginInvoke</code> به نخ UI منتقل می‌شود؛ و
+    وضعیت مشترک رونوشت فقط زیر یک قفل در <code>CaptionCapture</code> تغییر می‌کند.
+  </p>
+  <figure><img class="dia" src="../diagrams/threads.svg" alt="threads"><figcaption><b>شکل ۳-۲</b> — نخ‌های اپ. پیکان‌های خط‌چین یعنی انتقال کار به نخ رابط کاربری با <code>BeginInvoke</code>.</figcaption></figure>
+
+  <div class="cols">
+    <div class="box why">
+      <div class="box-title">چرا هوک نخ جداگانه دارد؟</div>
+      <p>اگر callback هوک سطح پایین دیر برگردد، ویندوز آن را نادیده می‌گیرد و ممکن است هوک را بی‌صدا حذف کند. با یک نخ
+        و message loop اختصاصی، شلوغ بودن نخ UI هرگز کیبورد کل سیستم را کند نمی‌کند.</p>
+    </div>
+    <div class="box why">
+      <div class="box-title">چرا await روی نخ UI ادامه می‌یابد؟</div>
+      <p>کلاس <code>SendController</code> همه‌ی کارش را روی نخ UI انجام می‌دهد و بعد از <code>await</code> هم همان‌جا برمی‌گردد. پس
+        دیکشنری ارسال‌های در صف و پیام‌های نشانگر بدون قفل امن‌اند.</p>
+    </div>
+  </div>
+
+  <div class="box fact">
+    <div class="box-title">اندازه‌گیری‌شده</div>
+    <p>ده دقیقه گفتار پیوسته با Live Captions: اپ فقط <b>۳ ثانیه CPU</b> و <b>۷۲ MB</b> حافظه مصرف کرد — poll کردن هر ۱۲۰
+      میلی‌ثانیه ارزان است چون فقط یک property خوانده می‌شود.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>I separated pure logic from adapters. The state machine, the transcript merger, capture and the send controller
+      are plain C# classes that take data and return decisions, so they are unit-tested without Windows, a keyboard or a
+      network. The adapters — the keyboard hook, the UI Automation reader, the Kestrel server and the session writer —
+      are thin. Interfaces like <i>ICaptionSource</i> and <i>IMessageSender</i>, plus an injected clock, are the seams.
+      Each thread owns one job, shared transcript state lives behind one lock, and everything UI is marshalled to the
+      UI thread.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>How did you make Win32-heavy code testable?</dt>
+      <dd>By keeping the Win32 part a thin adapter and moving every decision into a pure class. The hook only forwards
+        (key, down/up, key state); the state machine decides, and it is tested with scripted key sequences.</dd>
+      <dt>Why no dependency-injection container?</dt>
+      <dd>It is a small app with one composition root. Explicit wiring in Program.cs shows the start-up order in one
+        place and has no hidden magic.</dd>
+      <dt>What happens if the UI thread is busy when a key is pressed?</dt>
+      <dd>Nothing bad: the hook runs on its own thread and returns immediately; the action is queued to the UI thread
+        with BeginInvoke and runs a moment later.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .zl { font: 700 8.5px 'Segoe UI', sans-serif; letter-spacing: 1px; }
+    .t { font: 700 10px 'Segoe UI', sans-serif; fill: #1a202c; }
+    .f { font: 8.5px 'Cascadia Mono', Consolas, monospace; fill: #6b46c1; }
+    .s { font: 8.5px 'Segoe UI', sans-serif; fill: #4a5568; }
+    .e { font: 8.5px 'Segoe UI', sans-serif; fill: #2d3748; }
+  </style>
+
+  <!-- app -->
+  <rect x="10" y="104" width="104" height="64" rx="9" fill="#ebf4ff" stroke="#2b6cb0" stroke-width="1.3"/>
+  <text class="t" x="20" y="124" style="fill:#1a4971">CaptionRelay</text>
+  <text class="t" x="20" y="138" style="fill:#1a4971">app</text>
+  <text class="s" x="20" y="156">WebSocket server</text>
+
+  <!-- service worker -->
+  <rect x="146" y="12" width="300" height="280" rx="12" fill="#f3faf5" stroke="#9ae6b4"/>
+  <text class="zl" x="158" y="28" fill="#2f855a">SERVICE WORKER · background.js</text>
+  <rect x="158" y="38" width="276" height="56" rx="8" fill="#fff" stroke="#2f855a"/>
+  <text class="f" x="168" y="54">lib/connection.js</text>
+  <text class="s" x="168" y="69">hello · ping/pong · ack · reconnect 1 / 2 / 5 s</text>
+  <text class="s" x="168" y="83">no chrome.* calls → tested in Node with a fake socket</text>
+  <rect x="158" y="106" width="132" height="58" rx="8" fill="#fff" stroke="#2f855a"/>
+  <text class="f" x="168" y="122">providers/registry.js</text>
+  <text class="s" x="168" y="138">id → provider</text>
+  <text class="s" x="168" y="152">chosen in options</text>
+  <rect x="302" y="106" width="132" height="58" rx="8" fill="#fff" stroke="#6b46c1"/>
+  <text class="f" x="312" y="122">gemini/provider.js</text>
+  <text class="s" x="312" y="138">pick and protect the tab,</text>
+  <text class="s" x="312" y="152">ping, reload if frozen</text>
+  <rect x="158" y="176" width="132" height="50" rx="8" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="168" y="194">chrome.alarms</text>
+  <text class="s" x="168" y="210">every 30 s → ensure()</text>
+  <rect x="302" y="176" width="132" height="50" rx="8" fill="#fff" stroke="#a0aec0"/>
+  <text class="f" x="312" y="194">lib/log.js</text>
+  <text class="s" x="312" y="210">logs → app ("log")</text>
+  <rect x="158" y="238" width="276" height="42" rx="8" fill="#fff" stroke="#a0aec0"/>
+  <text class="t" x="168" y="255">badge ON / OFF</text>
+  <text class="s" x="168" y="270">the user sees the connection state on the toolbar icon</text>
+
+  <!-- gemini tab -->
+  <rect x="482" y="12" width="268" height="176" rx="12" fill="#f7f3ff" stroke="#d6bcfa"/>
+  <text class="zl" x="494" y="28" fill="#6b46c1">GEMINI TAB · CONTENT SCRIPTS</text>
+  <rect x="494" y="38" width="114" height="44" rx="8" fill="#fff" stroke="#6b46c1"/>
+  <text class="f" x="502" y="54">gemini/selectors.js</text>
+  <text class="s" x="502" y="70">every selector, in one file</text>
+  <rect x="494" y="90" width="114" height="44" rx="8" fill="#fff" stroke="#6b46c1"/>
+  <text class="f" x="502" y="106">gemini/content.js</text>
+  <text class="s" x="502" y="122">message handler</text>
+  <rect x="618" y="38" width="122" height="96" rx="8" fill="#fff" stroke="#6b46c1"/>
+  <text class="f" x="628" y="54">webchat.js</text>
+  <text class="s" x="628" y="72">shared by all chats:</text>
+  <text class="s" x="628" y="86">insert · submit</text>
+  <text class="s" x="628" y="100">verify · busy queue</text>
+  <text class="s" x="628" y="114">MutationObserver waits</text>
+  <rect x="494" y="144" width="246" height="34" rx="8" fill="#ede9fe" stroke="#b794f4"/>
+  <text class="t" x="617" y="165" style="text-anchor: middle; fill: #44337a">page DOM: prompt box, send / stop button, turns</text>
+
+  <!-- options -->
+  <rect x="482" y="206" width="268" height="86" rx="12" fill="#f7fafc" stroke="#cbd5e0"/>
+  <text class="zl" x="494" y="222" fill="#718096">OPTIONS PAGE · options.html</text>
+  <text class="s" x="494" y="240">port · token · provider · live status · Reconnect</text>
+  <text class="s" x="494" y="256">Test: insert without sending + selector report</text>
+  <text class="s" x="494" y="276">settings live in chrome.storage.local</text>
+
+  <!-- arrows -->
+  <g stroke="#4a5568" stroke-width="1.3" fill="none">
+    <path d="M114,128 H157" marker-start="url(#ar)" marker-end="url(#ar)"/>
+    <path d="M296,94 V105" marker-end="url(#ar)"/>
+    <path d="M290,135 H301" marker-end="url(#ar)"/>
+    <path d="M434,122 H493" marker-end="url(#ar)"/>
+    <path d="M493,116 C470,150 460,170 435,190" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+    <path d="M481,250 H435" marker-start="url(#ar)" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+    <path d="M608,112 H617" marker-end="url(#ar)"/>
+  </g>
+  <text class="e" x="118" y="121">ws://</text>
+  <text class="e" x="440" y="116">deliver</text>
+  <text class="e" x="452" y="178" style="fill:#718096">result</text>
+  <text class="e" x="440" y="244" style="fill:#718096">status</text>
+</svg>

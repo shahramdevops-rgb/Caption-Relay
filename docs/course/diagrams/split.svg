@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 214">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .hd { font: 700 12px 'Segoe UI', sans-serif; fill: #fff; }
+    .r { font: 10.5px 'Segoe UI', sans-serif; fill: #2d3748; }
+    .ok { font: 700 12px 'Segoe UI', sans-serif; fill: #2f855a; }
+    .no { font: 700 12px 'Segoe UI', sans-serif; fill: #c53030; }
+    .m { font: 9.5px 'Segoe UI', sans-serif; fill: #4a5568; text-anchor: middle; }
+  </style>
+
+  <rect x="16" y="14" width="292" height="190" rx="12" fill="#fff" stroke="#2b6cb0" stroke-width="1.4"/>
+  <path d="M16,26 a12,12 0 0 1 12,-12 h268 a12,12 0 0 1 12,12 v16 h-292 z" fill="#2b6cb0"/>
+  <text class="hd" x="30" y="35">Windows app · C# .NET 8</text>
+  <text class="ok" x="30" y="70">✓</text><text class="r" x="48" y="70">Read Live Captions (UI Automation)</text>
+  <text class="ok" x="30" y="100">✓</text><text class="r" x="48" y="100">Global hotkey in any window</text>
+  <text class="ok" x="30" y="130">✓</text><text class="r" x="48" y="130">Keep the full transcript and session files</text>
+  <text class="no" x="30" y="160">✗</text><text class="r" x="48" y="160">Type into a web page without taking focus</text>
+  <text class="no" x="30" y="190">✗</text><text class="r" x="48" y="190">Know whether the chat is busy or signed in</text>
+
+  <rect x="452" y="14" width="292" height="190" rx="12" fill="#fff" stroke="#2f855a" stroke-width="1.4"/>
+  <path d="M452,26 a12,12 0 0 1 12,-12 h268 a12,12 0 0 1 12,12 v16 h-292 z" fill="#2f855a"/>
+  <text class="hd" x="466" y="35">Chrome extension · Manifest V3</text>
+  <text class="no" x="466" y="70">✗</text><text class="r" x="484" y="70">Read another program's window</text>
+  <text class="no" x="466" y="100">✗</text><text class="r" x="484" y="100">Hotkey while another app has focus</text>
+  <text class="no" x="466" y="130">✗</text><text class="r" x="484" y="130">Keep running when Chrome is closed</text>
+  <text class="ok" x="466" y="160">✓</text><text class="r" x="484" y="160">Insert and submit in a background tab</text>
+  <text class="ok" x="466" y="190">✓</text><text class="r" x="484" y="190">Read the page: busy, signed in, new turn</text>
+
+  <rect x="322" y="70" width="116" height="78" rx="10" fill="#f7fafc" stroke="#a0aec0" stroke-dasharray="4 3"/>
+  <text x="380" y="88" style="font: 700 10.5px 'Segoe UI'; fill: #2d3748; text-anchor: middle">loopback WebSocket</text>
+  <text class="m" x="380" y="102" style="font-family: 'Cascadia Mono', Consolas, monospace; font-size: 8.5px">127.0.0.1:47321/relay</text>
+  <line x1="332" y1="118" x2="428" y2="118" stroke="#4a5568" stroke-width="1.4" marker-end="url(#ar)"/>
+  <text class="m" x="380" y="114">send {id, text}</text>
+  <line x1="428" y1="138" x2="332" y2="138" stroke="#4a5568" stroke-width="1.4" marker-end="url(#ar)"/>
+  <text class="m" x="380" y="134">ack {id, status}</text>
+</svg>

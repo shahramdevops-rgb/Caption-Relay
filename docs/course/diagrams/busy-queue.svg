@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 236">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+  </defs>
+  <style>
+    .ln { font: 700 9.5px 'Segoe UI', sans-serif; fill: #2d3748; }
+    .ls { font: 8.5px 'Segoe UI', sans-serif; fill: #718096; }
+    .t { font: 9px 'Segoe UI', sans-serif; fill: #2d3748; text-anchor: middle; }
+    .w { font: 600 9px 'Segoe UI', sans-serif; fill: #fff; text-anchor: middle; }
+    .m { font: 8.5px 'Cascadia Mono', Consolas, monospace; fill: #2d3748; text-anchor: middle; }
+  </style>
+
+  <text class="ln" x="12" y="44">Gemini page</text><text class="ls" x="12" y="56">stop button = busy</text>
+  <text class="ln" x="12" y="104">content script</text><text class="ls" x="12" y="116">observer + 250 ms poll</text>
+  <text class="ln" x="12" y="164">app</text><text class="ls" x="12" y="176">indicator, ticket</text>
+
+  <!-- gemini lane -->
+  <rect x="120" y="30" width="440" height="30" rx="6" fill="#6b46c1"/>
+  <text class="w" x="340" y="49">answering a long reply — the send button is a stop button now</text>
+  <rect x="610" y="30" width="138" height="30" rx="6" fill="#9f7aea"/>
+  <text class="w" x="679" y="49">answers "A + B"</text>
+
+  <!-- content script lane -->
+  <rect x="180" y="90" width="380" height="30" rx="6" fill="#fffaeb" stroke="#d69e2e"/>
+  <text class="t" x="400" y="109">queue: A, then A and B — the stop button is never clicked</text>
+  <line x1="560" y1="24" x2="560" y2="200" stroke="#a0aec0" stroke-dasharray="3 3"/>
+  <text class="ls" x="556" y="20" style="text-anchor: end">answer ends</text>
+  <rect x="566" y="90" width="38" height="30" rx="6" fill="#edf2f7" stroke="#cbd5e0"/>
+  <text class="t" x="585" y="104">wait</text><text class="t" x="585" y="115">0.3 s</text>
+  <rect x="610" y="90" width="138" height="30" rx="6" fill="#eaf7ef" stroke="#38a169"/>
+  <text class="t" x="679" y="104">submit ONE message</text>
+  <text class="m" x="679" y="115">A ⏎⏎ B</text>
+
+  <!-- app lane -->
+  <rect x="180" y="150" width="440" height="30" rx="6" fill="#fffaeb" stroke="#d69e2e"/>
+  <text class="t" x="400" y="169">indicator "· queued" · tickets A and B wait for a result (≤ 200 s)</text>
+  <rect x="626" y="150" width="122" height="30" rx="6" fill="#2f855a"/>
+  <text class="w" x="687" y="169">Sent ✓  (A and B)</text>
+
+  <!-- sends -->
+  <g stroke="#4a5568" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+    <path d="M180,200 V122"/><path d="M330,200 V122"/>
+    <path d="M700,122 V148"/>
+  </g>
+  <circle cx="180" cy="208" r="9" fill="#2d3748"/><text class="w" x="180" y="211.5">A</text>
+  <circle cx="330" cy="208" r="9" fill="#2d3748"/><text class="w" x="330" y="211.5">B</text>
+  <text class="ls" x="194" y="212">Ctrl+Shift → ack "queued"</text>
+  <text class="ls" x="344" y="212">Ctrl+Shift → ack "queued" (2 queued)</text>
+  <text class="m" x="706" y="140" style="text-anchor: start">result</text>
+  <text class="ls" x="12" y="232">still busy after 3 minutes → result "error" for every queued id; the app restores those tickets, so the text stays pending</text>
+</svg>

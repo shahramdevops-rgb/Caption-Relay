@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CaptionRelay course</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<section class="chapter" id="ch10" data-num="10" data-fa="پروتکل WebSocket" data-en="The WebSocket protocol">
+  <div class="chapter-head">
+    <div class="chapter-num">10</div>
+    <div>
+      <h1>پروتکل WebSocket</h1>
+      <div class="sub">The app ↔ extension protocol, version 1</div>
+    </div>
+  </div>
+
+  <p class="lead">
+    پروتکل عمداً کوچک است: پیام‌های JSON متنی، هر کدام با یک فیلد <code>type</code>. هفت نوع پیام کل کار را انجام می‌دهند.
+    مهم‌تر از خود پیام‌ها، <b>قانون‌های تکامل</b> پروتکل است، چون از اول قرار بود providerهای دیگر بعداً اضافه شوند
+    بدون اینکه اپ یا افزونه‌ی قدیمی بشکند.
+  </p>
+
+  <figure><img class="dia" src="../diagrams/protocol.svg" alt="protocol"><figcaption><b>شکل ۱۰-۱</b> — همه‌ی پیام‌ها در پنج مرحله: اتصال، زنده نگه داشتن، ارسال، ارسال وقتی چت مشغول است، و گزارش تشخیصی.</figcaption></figure>
+
+  <h2>پیام‌ها <span class="en-tag">Messages</span></h2>
+  <table>
+    <tr><th style="width:16%">پیام</th><th style="width:17%">جهت</th><th>معنی</th></tr>
+    <tr><td><code>hello</code></td><td>افزونه به اپ</td><td>اولین پیام: توکن، نسخه‌ی پروتکل، و نام provider (برچسب نشانگر)</td></tr>
+    <tr><td><code>welcome</code></td><td>اپ به افزونه</td><td>دست‌دادن پذیرفته شد</td></tr>
+    <tr><td><code>ping</code> / <code>pong</code></td><td>هر دو طرف</td><td>هر ۲۰ ثانیه؛ service worker را بیدار نگه می‌دارد و اتصال مرده را پیدا می‌کند</td></tr>
+    <tr><td><code>send</code></td><td>اپ به افزونه</td><td>متن برای تحویل، با شناسه‌ی GUID (پیشوند قبلاً اعمال شده)</td></tr>
+    <tr><td><code>ack</code></td><td>افزونه به اپ</td><td>وضعیت فوری: <code>sent</code>، <code>queued</code> یا <code>error</code> با <code>detail</code>، و نام provider</td></tr>
+    <tr><td><code>result</code></td><td>افزونه به اپ</td><td>نتیجه‌ی نهایی ارسالی که <code>queued</code> شده بود</td></tr>
+    <tr><td><code>log</code></td><td>افزونه به اپ</td><td>تشخیص برای لاگ اپ (ساختار صفحه، زمان‌ها)؛ هرگز متن چت</td></tr>
+  </table>
+
+  <div class="box rule">
+    <div class="box-title">قانون‌های تکامل</div>
+    <ul>
+      <li>نوع ناشناخته و فیلد ناشناخته نادیده گرفته می‌شود، نه خطا. پس طرف قدیمی با پیام جدید نمی‌شکند.</li>
+      <li>قابلیت تازه فقط به شکل <b>نوع پیام اختیاری تازه</b> یا فیلد اختیاری اضافه می‌شود؛ معنی پیام‌های موجود هرگز عوض
+        نمی‌شود.</li>
+      <li>پیام <code>hello</code> شماره‌ی پروتکل را دارد تا اگر روزی تغییر ناسازگار لازم شد، دو طرف بتوانند آن را تشخیص دهند.</li>
+      <li>این قانون در عمل امتحان شد: پیام <code>log</code> در فاز ۸ و <code>result</code> در فاز ۹ اضافه شدند، بدون تغییر هیچ پیام قبلی.</li>
+    </ul>
+  </div>
+
+  <div class="box why">
+    <div class="box-title">چرا وضعیت‌ها عمومی‌اند؟</div>
+    <p>
+      وضعیت‌ها کلمه‌هایی مثل <code>sent</code> و <code>queued</code> هستند، نه چیزی مثل <code>Gemini-submitted</code>. اپ فقط می‌داند متن
+      تحویل شد، در صف است، یا شکست خورد؛ اینکه چه کسی تحویل داد فقط یک برچسب (<code>provider</code>) برای نمایش و لاگ است.
+      همین باعث می‌شود اضافه کردن ChatGPT یا یک API به تغییر در اپ نیاز نداشته باشد.
+    </p>
+  </div>
+
+  <h2>زمان‌بندی‌ها <span class="en-tag">Timing</span></h2>
+  <table>
+    <tr><th style="width:36%">قاعده</th><th>دلیل</th></tr>
+    <tr><td>پیام hello در کمتر از ۵ ثانیه</td><td>اتصالی که خودش را معرفی نمی‌کند، منبع نگه ندارد</td></tr>
+    <tr><td>پیام ping هر ۲۰ ثانیه</td><td>مرورگر Chrome یک service worker بیکار را بعد از حدود ۳۰ ثانیه متوقف می‌کند؛ فعالیت روی WebSocket آن را زنده نگه می‌دارد</td></tr>
+    <tr><td>بستن بعد از ۶۵ ثانیه سکوت</td><td>بیش از سه ping از دست رفته یعنی طرف مقابل واقعاً رفته</td></tr>
+    <tr><td>مهلت ack سه ثانیه</td><td>جواب عادی زیر ۱۲۰ میلی‌ثانیه است؛ کار طولانی‌تر باید queued بگوید</td></tr>
+    <tr><td>انتظار برای result تا ۲۰۰ ثانیه</td><td>افزونه بعد از ۳ دقیقه منتظر ماندن برای Gemini، خودش خطا گزارش می‌کند؛ اپ کمی بیشتر صبر می‌کند</td></tr>
+  </table>
+
+  <div class="box fact">
+    <div class="box-title">تست‌شده</div>
+    <p>۲۶ تست یکپارچه با سوکت واقعی برای سرور، و ابزار <code>tools/RelayTestClient</code> که نقش افزونه را بازی می‌کند و می‌تواند
+      عمداً <code>sent</code>، <code>queued</code>، <code>error</code> یا هیچ جوابی برگرداند. در Chrome واقعی، بعد از راه‌اندازی دوباره‌ی اپ، افزونه ۰٫۹ ثانیه بعد از
+      بالا آمدن سرور دوباره وصل شد.</p>
+  </div>
+
+  <div class="box interview">
+    <div class="box-title">IN AN INTERVIEW</div>
+    <p>The protocol is seven JSON message types over one WebSocket. The extension says hello with a token and a protocol
+      version, the app pings every 20 seconds, and each send carries a GUID that the ack echoes with a generic status —
+      sent, queued or error. Slow deliveries answer "queued" immediately and send a result later. The evolution rules
+      matter most: unknown types and fields are ignored and features are only added as new optional messages; result and
+      log were added that way without breaking anything.</p>
+  </div>
+
+  <div class="qa">
+    <div class="box-title">Interview questions</div>
+    <dl>
+      <dt>How do you version a protocol like this?</dt>
+      <dd>A protocol number in the handshake, plus tolerant readers: ignore unknown types and fields, and add only optional
+        messages. Breaking changes would bump the number.</dd>
+      <dt>Why an immediate "queued" plus a later "result" instead of one slow ack?</dt>
+      <dd>A long ack timeout would leave the user guessing and tie up the request. Splitting it keeps the ack fast and
+        lets the slow path report on its own schedule.</dd>
+      <dt>Why are ping and pong needed on a local socket?</dt>
+      <dd>To keep the MV3 service worker alive and to detect a dead peer — a closed laptop lid or a crashed browser does not
+        always close the socket cleanly.</dd>
+    </dl>
+  </div>
+</section>
+</body>
+</html>

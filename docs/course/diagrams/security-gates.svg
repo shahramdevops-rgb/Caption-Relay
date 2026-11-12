@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 252">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2f855a"/>
+    </marker>
+  </defs>
+  <style>
+    .c { font: 600 10px 'Segoe UI', sans-serif; fill: #2d3748; }
+    .cs { font: 8.5px 'Segoe UI', sans-serif; fill: #718096; }
+    .gt { font: 700 10px 'Segoe UI', sans-serif; text-anchor: middle; fill: #1a4971; }
+    .gs { font: 8.5px 'Segoe UI', sans-serif; text-anchor: middle; fill: #4a5568; }
+    .gm { font: 8px 'Cascadia Mono', Consolas, monospace; text-anchor: middle; fill: #6b46c1; }
+    .x { font: 700 15px 'Segoe UI', sans-serif; fill: #c53030; text-anchor: middle; }
+    .why { font: 8.5px 'Segoe UI', sans-serif; fill: #c53030; }
+  </style>
+
+  <!-- gates -->
+  <rect x="236" y="10" width="110" height="234" rx="10" fill="#ebf4ff" stroke="#2b6cb0"/>
+  <text class="gt" x="291" y="28">1 · Loopback</text>
+  <text class="gm" x="291" y="42">Listen(127.0.0.1)</text>
+  <text class="gs" x="291" y="56">not on the network</text>
+  <rect x="396" y="10" width="110" height="234" rx="10" fill="#ebf4ff" stroke="#2b6cb0"/>
+  <text class="gt" x="451" y="28">2 · Origin</text>
+  <text class="gm" x="451" y="42">chrome-extension://id</text>
+  <text class="gs" x="451" y="56">else HTTP 403</text>
+  <rect x="556" y="10" width="110" height="234" rx="10" fill="#ebf4ff" stroke="#2b6cb0"/>
+  <text class="gt" x="611" y="28">3 · Token</text>
+  <text class="gm" x="611" y="42">hello within 5 s</text>
+  <text class="gs" x="611" y="56">constant-time compare</text>
+
+  <!-- callers -->
+  <rect x="12" y="78" width="196" height="34" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="c" x="22" y="93">Another computer on the LAN</text><text class="cs" x="22" y="106">port scan, Wi-Fi neighbour</text>
+  <rect x="12" y="124" width="196" height="34" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="c" x="22" y="139">A web page in any tab</text><text class="cs" x="22" y="152">WebSocket has no same-origin rule</text>
+  <rect x="12" y="170" width="196" height="34" rx="7" fill="#fff" stroke="#a0aec0"/>
+  <text class="c" x="22" y="185">Another program on this PC</text><text class="cs" x="22" y="198">can send any Origin header</text>
+  <rect x="12" y="216" width="196" height="30" rx="7" fill="#eaf7ef" stroke="#38a169"/>
+  <text class="c" x="22" y="235" style="fill:#2f855a">CaptionRelay extension</text>
+
+  <g stroke-width="1.6" fill="none">
+    <line x1="208" y1="95" x2="248" y2="95" stroke="#c53030"/>
+    <line x1="208" y1="141" x2="408" y2="141" stroke="#c53030"/>
+    <line x1="208" y1="187" x2="568" y2="187" stroke="#c53030"/>
+    <line x1="208" y1="231" x2="698" y2="231" stroke="#2f855a" marker-end="url(#ar)"/>
+  </g>
+  <text class="x" x="258" y="100">✕</text>
+  <text class="x" x="418" y="146">✕</text>
+  <text class="x" x="578" y="192">✕</text>
+  <text class="why" x="270" y="99">cannot reach it</text>
+  <text class="why" x="430" y="145">Origin is https://…</text>
+  <text class="why" x="590" y="191">no token</text>
+
+  <rect x="676" y="200" width="76" height="46" rx="8" fill="#2f855a"/>
+  <text x="714" y="220" style="font: 700 10px 'Segoe UI'; fill: #fff; text-anchor: middle">welcome</text>
+  <text x="714" y="234" style="font: 8.5px 'Segoe UI'; fill: #e6fffa; text-anchor: middle">connected</text>
+</svg>

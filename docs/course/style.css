@@ -1,0 +1,397 @@
+/* CaptionRelay design course - print stylesheet (A4, right-to-left Persian with English boxes). */
+
+:root {
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #e3e7ee;
+  --soft: #f6f8fb;
+  --app: #2b6cb0;
+  --app-bg: #ebf4ff;
+  --ext: #2f855a;
+  --ext-bg: #eaf7ef;
+  --page: #6b46c1;
+  --page-bg: #f3eeff;
+  --os: #c05621;
+  --os-bg: #fff3ea;
+  --warn: #b7791f;
+  --warn-bg: #fffaeb;
+  --bad: #c53030;
+  --bad-bg: #fff5f5;
+}
+
+@page {
+  size: A4;
+  margin: 15mm 16mm 17mm 16mm;
+  @bottom-center {
+    content: counter(page);
+    font: 8.5pt "Segoe UI", sans-serif;
+    color: #9aa3b2;
+  }
+  @bottom-left {
+    content: "CaptionRelay \2014  design course";
+    font: 7.5pt "Segoe UI", sans-serif;
+    color: #b4bcc8;
+  }
+}
+
+@page cover {
+  margin: 0;
+  @bottom-center { content: none; }
+  @bottom-left { content: none; }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--ink);
+  font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  font-size: 10.2pt;
+  line-height: 1.85;
+  text-align: justify;
+}
+
+p { margin: 0 0 7px; }
+
+b, strong { font-weight: 700; }
+
+code, .mono {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 0.86em;
+  direction: ltr;
+  unicode-bidi: isolate;
+  background: #f1f3f7;
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.en, .ltr {
+  direction: ltr;
+  text-align: left;
+  font-family: "Segoe UI", sans-serif;
+}
+
+bdi { unicode-bidi: isolate; white-space: nowrap; }
+
+/* ---------- chapters ---------- */
+
+section.chapter { break-before: page; }
+
+.chapter-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--line);
+}
+
+.chapter-num {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--app);
+  color: #fff;
+  font: 700 20pt/46px "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+.chapter-head h1 {
+  margin: 0;
+  font-size: 18pt;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.chapter-head .sub {
+  direction: ltr;
+  text-align: right;
+  font: 10pt "Segoe UI", sans-serif;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+
+h2 {
+  font-size: 12.5pt;
+  margin: 16px 0 6px;
+  color: #17324f;
+  break-after: avoid;
+}
+
+h2 .en-tag {
+  display: inline-block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font: 400 9pt "Segoe UI", sans-serif;
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+h3 {
+  font-size: 10.8pt;
+  margin: 12px 0 4px;
+  break-after: avoid;
+}
+
+ul, ol { margin: 0 0 8px; padding-right: 20px; padding-left: 0; }
+ol { list-style-type: persian; }
+.interview ol, .qa ol, .en ol { list-style-type: decimal; }
+li { margin-bottom: 2px; }
+
+.lead {
+  font-size: 10.8pt;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+/* ---------- figures ---------- */
+
+figure {
+  margin: 10px 0 12px;
+  break-inside: avoid;
+  text-align: center;
+}
+
+figure svg {
+  direction: ltr;
+  width: 100%;
+  height: auto;
+  font-family: "Segoe UI", sans-serif;
+}
+
+figure.narrow svg { width: 78%; }
+figure.half svg { width: 60%; }
+
+figcaption {
+  margin-top: 4px;
+  font-size: 8.8pt;
+  color: var(--muted);
+  text-align: center;
+}
+
+figcaption b { color: #4b5563; }
+
+/* ---------- boxes ---------- */
+
+.box {
+  border-radius: 8px;
+  padding: 8px 12px 6px;
+  margin: 10px 0;
+  break-inside: avoid;
+}
+
+.box > .box-title {
+  font-weight: 700;
+  font-size: 9.6pt;
+  margin-bottom: 3px;
+}
+
+.box p:last-child, .box ul:last-child { margin-bottom: 2px; }
+
+.why { background: var(--app-bg); border-right: 4px solid var(--app); }
+.why > .box-title { color: var(--app); }
+
+.rejected { background: #f5f5f4; border-right: 4px solid #a8a29e; }
+.rejected > .box-title { color: #57534e; }
+
+.fact { background: var(--page-bg); border-right: 4px solid var(--page); }
+.fact > .box-title { color: var(--page); }
+
+.rule { background: var(--warn-bg); border-right: 4px solid var(--warn); }
+.rule > .box-title { color: var(--warn); }
+
+.interview {
+  direction: ltr;
+  text-align: left;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 9.6pt;
+  line-height: 1.55;
+  background: var(--ext-bg);
+  border-left: 4px solid var(--ext);
+}
+.interview > .box-title { color: var(--ext); font-size: 9.4pt; letter-spacing: 0.3px; }
+
+.qa {
+  direction: ltr;
+  text-align: left;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 9.3pt;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px 4px;
+  margin: 10px 0;
+  break-inside: avoid;
+}
+.qa > .box-title { color: #374151; font-weight: 700; font-size: 9.4pt; margin-bottom: 4px; }
+.qa dl { margin: 0; }
+.qa dt { font-weight: 600; color: #1e3a5f; margin-top: 4px; }
+.qa dt::before { content: "Q. "; color: var(--app); font-weight: 700; }
+.qa dd { margin: 1px 0 5px 18px; color: #374151; }
+
+/* two columns of small boxes */
+.cols { display: flex; gap: 10px; margin: 8px 0; }
+.cols > * { flex: 1 1 0; margin: 0; }
+
+/* ---------- tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 9pt;
+  line-height: 1.55;
+  break-inside: avoid;
+}
+
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 4px 6px;
+  vertical-align: top;
+  text-align: right;
+}
+
+th { background: #f1f4f8; font-weight: 700; color: #374151; }
+
+table.ltr th, table.ltr td { text-align: left; }
+table.ltr { direction: ltr; font-family: "Segoe UI", sans-serif; }
+
+td.c, th.c { text-align: center; }
+
+.tag {
+  display: inline-block;
+  font: 600 7.8pt/1.6 "Segoe UI", sans-serif;
+  padding: 0 6px;
+  border-radius: 9px;
+  direction: ltr;
+}
+.tag.app { background: var(--app-bg); color: var(--app); }
+.tag.ext { background: var(--ext-bg); color: var(--ext); }
+.tag.page { background: var(--page-bg); color: var(--page); }
+.tag.os { background: var(--os-bg); color: var(--os); }
+
+/* ---------- cover ---------- */
+
+section.cover {
+  page: cover;
+  height: 297mm;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #0f2744 0%, #17406b 55%, #1f5a8f 100%);
+  color: #fff;
+  padding: 34mm 20mm 0;
+}
+
+.cover .kicker {
+  direction: ltr;
+  text-align: left;
+  font: 600 10pt "Segoe UI", sans-serif;
+  letter-spacing: 3px;
+  color: #9cc3ec;
+}
+
+.cover .title {
+  direction: ltr;
+  text-align: left;
+  font: 700 46pt/1.1 "Segoe UI", sans-serif;
+  margin: 8px 0 6px;
+}
+
+.cover .title-en {
+  direction: ltr;
+  text-align: left;
+  font: 300 17pt/1.35 "Segoe UI", sans-serif;
+  color: #dbe9f8;
+}
+
+.cover .title-fa {
+  font-size: 19pt;
+  font-weight: 700;
+  margin: 18px 0 4px;
+}
+
+.cover .desc {
+  font-size: 11pt;
+  color: #cfe0f2;
+  max-width: 150mm;
+  line-height: 1.9;
+}
+
+.cover .hero {
+  margin: 16mm -4mm 0;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 14px;
+  padding: 10px 8px 6px;
+}
+
+.cover .hero svg { width: 100%; height: auto; direction: ltr; }
+
+.cover .meta {
+  position: absolute;
+  bottom: 16mm;
+  left: 20mm;
+  right: 20mm;
+  display: flex;
+  justify-content: space-between;
+  direction: ltr;
+  font: 9pt "Segoe UI", sans-serif;
+  color: #9cc3ec;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding-top: 8px;
+}
+
+/* ---------- table of contents ---------- */
+
+.toc { margin-top: 6px; }
+
+.toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 1px dashed #e8ebf0;
+}
+
+.toc-num {
+  flex: 0 0 26px;
+  font: 700 10pt "Segoe UI", sans-serif;
+  color: var(--app);
+  text-align: center;
+}
+
+.toc-fa { font-weight: 700; font-size: 10.4pt; }
+
+.toc-en {
+  direction: ltr;
+  font: 8.8pt "Segoe UI", sans-serif;
+  color: var(--muted);
+}
+
+.toc-dots { flex: 1 1 auto; }
+
+.toc-page {
+  flex: 0 0 24px;
+  font: 600 9.5pt "Segoe UI", sans-serif;
+  color: #4b5563;
+  text-align: left;
+}
+
+.legend-grid { display: flex; gap: 8px; margin: 8px 0 4px; }
+.legend-grid > div {
+  flex: 1 1 0;
+  text-align: right;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 9pt;
+  line-height: 1.6;
+}
+.legend-grid .t { font-weight: 700; display: block; }
+
+.page-break { break-before: page; margin-top: 0; }
