@@ -128,3 +128,20 @@ button[type="submit"] {
 .saved {
   color: var(--ok);
 }
+
+.test {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+pre {
+  white-space: pre-wrap;
+  font: 12px/1.5 Consolas, monospace;
+  color: var(--dim);
+}

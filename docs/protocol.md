@@ -30,6 +30,8 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 | ext → app | `{"type":"ack","id":"<guid>","status":"queued","provider":"gemini"}` | chat busy; will submit automatically |
 | ext → app | `{"type":"ack","id":"<guid>","status":"error","detail":"input not found","provider":"gemini"}` | failed |
 
+| ext → app | `{"type":"log","level":"info","text":"…"}` | diagnostics for the app log (page structure, timings — never chat text) |
+
 Either side may also send `ping` and get `pong`.
 
 ## Timing

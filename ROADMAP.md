@@ -72,8 +72,16 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       "Copy token" in the app menu. 11 Node tests. Real Chrome: connected after pasting the token; app restart →
       reconnected 0.9 s after the server was up; Ctrl+Shift → ack from Chrome in 4 ms (error "not implemented
       yet", text kept); stayed connected through 4 idle minutes.
-- [ ] **Phase 8 — Gemini provider delivery**: shared web-chat module + providers/gemini/selectors.js, insert
-      fallback chain with verification, keep draft, submit fallbacks, verify message appeared, ack, options "Test" button.
+- [x] **Phase 8 — Gemini provider delivery**: providers/webchat.js (shared: insert execCommand → paste → direct set,
+      each verified; draft kept as "draft, blank line, text"; submit via send button → closest send-like button (never
+      mic/upload) → Enter; verified by new user turn / emptied box / generation start), providers/gemini/selectors.js
+      (checked on the live page: gem-icon-button.send-button > button "Send message", .stop > "Stop response"),
+      most recently used Gemini tab or a new background tab (ack "queued"), options "Test" (insert without sending +
+      selector report), extension diagnostics forwarded to the app log (protocol "log"). 13 fake-page tests in a real
+      browser. Real Gemini (Chrome, via hotkey): sent in 92–113 ms in-page / ~110 ms from the hotkey; draft kept;
+      sending while Gemini answers → "Gemini is still answering", text kept and sent after the answer (stop never
+      clicked, 2,166-word answer complete); no Gemini tab → background tab opened and the text delivered there while
+      hidden and unfocused (~4 s).
 - [ ] **Phase 9 — Busy handling** (shared web-chat module): queue while the provider is generating, merge queued
       sends, submit when the answer ends.
 - [ ] **Phase 10 — Background/unfocused tab** (highest risk): real experiments with throttling/freezing,

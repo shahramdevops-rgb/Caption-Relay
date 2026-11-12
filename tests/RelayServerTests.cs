@@ -308,6 +308,7 @@ namespace CaptionRelay.Tests
             Assert.NotNull(await c.ReceiveType("ping", 1500));
             await c.Send(new { type = "pong" });
             await c.Send(new { type = "something-new", data = 1 });
+            await c.Send(new { type = "log", level = "info", text = "diagnostics line\nwith newline" });
             await c.Send(new { type = "ping" });
             Assert.NotNull(await c.ReceiveType("pong", 1500));
             Assert.True(server.IsConnected);

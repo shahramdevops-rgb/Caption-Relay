@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CaptionRelay fake chat test</title>
+  <style>
+    body { font: 14px "Segoe UI", sans-serif; margin: 16px; }
+    .ql-editor { border: 1px solid #888; min-height: 40px; padding: 6px; }
+    #stage { border: 1px dashed #aaa; padding: 8px; margin-bottom: 12px; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Web-chat delivery tests (fake Gemini page)</h1>
+  <div id="stage"></div>
+  <pre id="results">running…</pre>
+
+  <script src="../../extension/providers/gemini/selectors.js"></script>
+  <script src="../../extension/providers/webchat.js"></script>
+  <script>
+    // Builds a Gemini-like page. Options change how the fake behaves.
+    function build(o = {}) {
+      const stage = document.getElementById('stage');
+      stage.innerHTML = '';
+      const area = document.createElement('input-area-v2');
+      const rt = document.createElement('rich-textarea');
+      const box = document.createElement('div');
+      box.className = 'ql-editor';
+      box.contentEditable = 'true';
+      if (o.noInput) box.contentEditable = 'false';
+      rt.appendChild(box);
+      area.appendChild(rt);
+      const btn = document.createElement('button');
+      btn.textContent = 'send';
+      btn.className = o.real ? '' : (o.buttonClass ?? 'send-button');
+      if (o.ariaLabel) btn.setAttribute('aria-label', o.ariaLabel);
+      btn.disabled = true;
+      let gem = null;
+      if (o.real) {
+        // Live Gemini structure (2026-11-12): <gem-icon-button class="send-button has-input submit"><button aria-label="Send message">
+        gem = document.createElement('gem-icon-button');
+        gem.className = o.busy ? 'send-button stop' : 'send-button has-input submit';
+        btn.setAttribute('aria-label', o.busy ? 'Stop response' : 'Send message');
+        gem.appendChild(btn);
+        area.appendChild(gem);
+      } else {
+        area.appendChild(btn);
+      }
+      const chat = document.createElement('div');
+      stage.append(chat, area);
+      if (o.draft) box.innerHTML = `<p>${o.draft}</p>`;
+
+      const update = () => { if (!o.busy) btn.disabled = box.innerText.trim() === ''; };
+      box.addEventListener('input', update);
+      update();
+      if (o.busy && !o.real) btn.className = 'send-button stop';
+      if (o.busy && o.real) btn.disabled = false;
+
+      btn.addEventListener('click', () => {
+        if (o.ignoreClicks || btn.classList.contains('stop') || gem?.classList.contains('stop')) {
+          if (gem?.classList.contains('stop')) window.__stopClicked = true;
+          return;
+        }
+        const q = document.createElement('user-query');
+        q.textContent = box.innerText.trim();
+        chat.appendChild(q);
+        box.innerHTML = '';
+        update();
+      });
+      if (o.breakExecCommand) document.execCommand = () => false;
+      return { box, btn, chat };
+    }
+
+    const sel = globalThis.CaptionRelaySelectors.gemini;
+    const chatApi = globalThis.CaptionRelayWebChat;
+    const realExec = document.execCommand.bind(document);
+    const results = [];
+    async function check(name, fn) {
+      document.execCommand = realExec;
+      try {
+        const detail = await fn();
+        results.push(`PASS ${name}${detail ? ' — ' + detail : ''}`);
+      } catch (e) {
+        results.push(`FAIL ${name} — ${e.message}`);
+      }
+    }
+    function expect(cond, msg) { if (!cond) throw new Error(msg); }
+    const turns = (p) => [...p.chat.querySelectorAll('user-query')].map((q) => q.textContent);
+
+    (async () => {
+      await check('empty box: inserted, submitted, verified', async () => {
+        const p = build();
+        const ack = await chatApi.deliver(sel, 'Hello there, what is a delegate?');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(turns(p)[0] === 'Hello there, what is a delegate?', 'turn: ' + turns(p)[0]);
+        return ack.detail;
+      });
+
+      await check('live Gemini structure (gem-icon-button.send-button) → sent via the structural selector', async () => {
+        const p = build({ real: true });
+        const ack = await chatApi.deliver(sel, 'real structure test');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/gem-icon-button\.send-button:not\(\.stop\) button/.test(ack.detail), ack.detail);
+        expect(turns(p)[0] === 'real structure test', 'turn: ' + turns(p)[0]);
+        return ack.detail;
+      });
+
+      await check('live Gemini structure while answering (gem-icon-button.stop) → busy, stop never clicked', async () => {
+        window.__stopClicked = false;
+        const p = build({ real: true, busy: true });
+        const ack = await chatApi.deliver(sel, 'must wait');
+        expect(ack.status === 'busy', JSON.stringify(ack));
+        expect(!window.__stopClicked, 'stop was clicked');
+        expect(p.box.innerText.trim() === '', 'box: ' + p.box.innerText);
+      });
+
+      await check("user's draft is kept and sent before our text", async () => {
+        const p = build({ draft: 'My own draft question' });
+        const ack = await chatApi.deliver(sel, 'caption text from the interviewer');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        const t = turns(p)[0];
+        expect(/^My own draft question\s+caption text from the interviewer$/.test(t), 'turn: ' + JSON.stringify(t));
+        return ack.detail;
+      });
+
+      await check('multi-line text keeps its lines', async () => {
+        const p = build();
+        const ack = await chatApi.deliver(sel, 'line one\n\nline two');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/line one\s+line two/.test(turns(p)[0]), 'turn: ' + JSON.stringify(turns(p)[0]));
+      });
+
+      await check('busy (stop button shown) → status busy, nothing inserted', async () => {
+        const p = build({ busy: true });
+        const ack = await chatApi.deliver(sel, 'should wait');
+        expect(ack.status === 'busy', JSON.stringify(ack));
+        expect(p.box.innerText.trim() === '', 'box: ' + p.box.innerText);
+      });
+
+      await check('no input → "input not found"', async () => {
+        build({ noInput: true });
+        const ack = await chatApi.deliver(sel, 'x');
+        expect(ack.status === 'error' && ack.detail === 'input not found', JSON.stringify(ack));
+      });
+
+      await check('Persian aria-label only (no class) → button found', async () => {
+        const p = build({ buttonClass: '', ariaLabel: 'ارسال پیام' });
+        const ack = await chatApi.deliver(sel, 'persian label test');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(turns(p).length === 1, 'turns: ' + turns(p).length);
+        return ack.detail;
+      });
+
+      await check('unknown button → closest button in the container is used', async () => {
+        const p = build({ buttonClass: 'mystery-submit' });
+        const ack = await chatApi.deliver(sel, 'closest button test', { buttonWaitMs: 300 });
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/closest button/.test(ack.detail), ack.detail);
+        expect(turns(p).length === 1, 'turns: ' + turns(p).length);
+        return ack.detail;
+      });
+
+      await check('only a microphone-like button → never clicked, Enter is tried, error reported', async () => {
+        const p = build({ buttonClass: 'mic-button', ariaLabel: 'Use microphone' });
+        let clicked = false;
+        p.btn.addEventListener('click', () => (clicked = true), true);
+        const ack = await chatApi.deliver(sel, 'must not click the mic', { buttonWaitMs: 300, verifyMs: 300 });
+        expect(!clicked, 'the microphone button was clicked');
+        expect(ack.status === 'error' && ack.detail === 'send button not found', JSON.stringify(ack));
+      });
+
+      await check('execCommand broken → fallback insert still works', async () => {
+        const p = build({ breakExecCommand: true });
+        const ack = await chatApi.deliver(sel, 'fallback insert test');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(!/^execCommand/.test(ack.detail), ack.detail);
+        expect(turns(p)[0] === 'fallback insert test', 'turn: ' + turns(p)[0]);
+        return ack.detail;
+      });
+
+      await check('click does nothing → error "message did not appear after submit"', async () => {
+        build({ ignoreClicks: true });
+        const ack = await chatApi.deliver(sel, 'ignored', { verifyMs: 400 });
+        expect(ack.status === 'error' && ack.detail === 'message did not appear after submit', JSON.stringify(ack));
+      });
+
+      await check('Test: inserts without submitting and reports selectors', async () => {
+        const p = build();
+        const r = await chatApi.test(sel, 'CaptionRelay test');
+        expect(r.ok, JSON.stringify(r));
+        expect(p.box.innerText.trim() === 'CaptionRelay test', 'box: ' + p.box.innerText);
+        expect(turns(p).length === 0, 'submitted!');
+        expect(r.report.input === 'rich-textarea div.ql-editor[contenteditable="true"]', 'input selector: ' + r.report.input);
+        return r.detail;
+      });
+
+      const failed = results.filter((r) => r.startsWith('FAIL')).length;
+      document.getElementById('results').textContent = results.join('\n');
+      document.title = failed ? `FAILED ${failed}/${results.length}` : `PASSED ${results.length}/${results.length}`;
+    })();
+  </script>
+</body>
+</html>

@@ -334,6 +334,9 @@ namespace CaptionRelay.Relay
                     case "ping":
                         await conn.SendJsonAsync(new { type = "pong" }, CancellationToken.None).ConfigureAwait(false);
                         break;
+                    case "log":
+                        OnExtensionLog(conn, m);
+                        break;
                     default:
                         break; // forward compatible: unknown types are ignored
                 }
@@ -360,6 +363,30 @@ namespace CaptionRelay.Relay
                 _ => new SendOutcome(SendStatus.Error, $"unknown ack status '{status}'", provider),
             };
             pending.Completion.TrySetResult(outcome);
+        }
+
+        /// <summary>Diagnostics from the extension (page structure, timings; never chat text) go to the app log.</summary>
+        private static void OnExtensionLog(Connection conn, JsonElement m)
+        {
+            string text = (Str(m, "text") ?? "").Replace('\r', ' ').Replace('\n', ' ');
+            if (text.Length > 4000)
+            {
+                text = text.Substring(0, 4000) + "…";
+            }
+
+            string line = $"Extension ({conn}): {text}";
+            switch (Str(m, "level"))
+            {
+                case "error":
+                    Log.Error(line);
+                    break;
+                case "warn":
+                    Log.Warn(line);
+                    break;
+                default:
+                    Log.Info(line);
+                    break;
+            }
         }
 
         private async Task PingLoopAsync(Connection conn)

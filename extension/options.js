@@ -59,7 +59,30 @@ async function refreshStatus() {
   }
 }
 
+async function runTest() {
+  $('testResult').textContent = 'Testing…';
+  let r;
+  try {
+    r = await chrome.runtime.sendMessage({ type: 'test-insert' });
+  } catch (e) {
+    r = { ok: false, detail: String(e) };
+  }
+  const lines = [(r?.ok ? '✓ ' : '✗ ') + (r?.detail ?? 'no answer')];
+  if (r?.report) {
+    for (const [name, value] of Object.entries(r.report)) {
+      if (Array.isArray(value)) {
+        lines.push(`${name}:`);
+        for (const item of value) lines.push(`  ${item}`);
+      } else {
+        lines.push(`${name.padEnd(15)} ${value === null ? '— not found' : value}`);
+      }
+    }
+  }
+  $('testResult').textContent = lines.join('\n');
+}
+
 $('form').addEventListener('submit', save);
+$('test').addEventListener('click', runTest);
 $('showToken').addEventListener('change', (e) => ($('token').type = e.target.checked ? 'text' : 'password'));
 $('reconnect').addEventListener('click', () => chrome.runtime.sendMessage({ type: 'reconnect' }));
 

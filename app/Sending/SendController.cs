@@ -104,12 +104,12 @@ namespace CaptionRelay.Sending
                 {
                     case SendStatus.Sent:
                         _capture.Confirm(ticket);
-                        Log.Info($"Send result: sent{via}.");
+                        Log.Info($"Send result: sent{via}{(string.IsNullOrEmpty(outcome.Detail) ? "" : " (" + outcome.Detail + ")")}.");
                         Report(FeedbackKind.Success, "Sent ✓");
                         break;
                     case SendStatus.Queued:
                         _capture.Confirm(ticket, "(queued)");
-                        Log.Info($"Send result: queued{via}.");
+                        Log.Info($"Send result: queued{via}{(string.IsNullOrEmpty(outcome.Detail) ? "" : " (" + outcome.Detail + ")")}.");
                         Report(FeedbackKind.Info, "Queued");
                         break;
                     case SendStatus.NoResponse:

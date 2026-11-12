@@ -1,7 +1,7 @@
 // Service worker: keeps the WebSocket to the CaptionRelay app open and hands "send" messages to the active provider.
 import { RelayConnection } from './lib/connection.js';
 import { getProvider, DEFAULT_PROVIDER } from './providers/registry.js';
-import { log, warn } from './lib/log.js';
+import { log, warn, setForwarder } from './lib/log.js';
 
 const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER };
 
@@ -29,10 +29,31 @@ const connection = new RelayConnection({
   WebSocketImpl: WebSocket,
   getSettings,
   onSend: deliver,
-  onState: updateBadge,
+  onState: (state) => {
+    updateBadge(state);
+    if (state === 'on') reportEnvironment();
+  },
   logger: { log, warn },
   version: chrome.runtime.getManifest().version,
 });
+
+// Extension log lines also go to the app's log (only while connected).
+setForwarder((level, text) => connection.sendLog(level, text));
+
+/** On connect: browser version and the Gemini tabs we could deliver to (no titles or URLs beyond the host). */
+async function reportEnvironment() {
+  try {
+    const chromeVersion = /Chrome\/([\d.]+)/.exec(navigator.userAgent)?.[1] ?? '?';
+    const tabs = await chrome.tabs.query({ url: 'https://gemini.google.com/*' });
+    const now = Date.now();
+    const list = tabs
+      .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
+      .map((t) => `#${t.id}${t.active ? ' active' : ''}${t.discarded ? ' discarded' : ''}${t.frozen ? ' frozen' : ''} ${Math.round((now - (t.lastAccessed ?? now)) / 1000)}s ago`);
+    log(`environment: Chrome ${chromeVersion}, Gemini tabs: ${list.length ? list.join(', ') : 'none'}`);
+  } catch (e) {
+    warn('environment report failed', String(e));
+  }
+}
 
 // Reconnect check every 30 s, in case the worker was stopped and restarted without a socket.
 chrome.alarms.create('captionrelay-keepalive', { periodInMinutes: 0.5 });
@@ -58,6 +79,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   } else if (message?.type === 'reconnect') {
     connection.restart();
     sendResponse({ ok: true });
+  } else if (message?.type === 'captionrelay-diag') {
+    // From a content script: page diagnostics (no chat text).
+    const line = `[tab ${_sender.tab?.id ?? '?'}] ${message.text}`;
+    if (message.level === 'warn') warn(line);
+    else log(line);
+    return false;
+  } else if (message?.type === 'test-insert') {
+    getSettings()
+      .then((s) => getProvider(s.provider).test('CaptionRelay test'))
+      .then(sendResponse, (e) => sendResponse({ ok: false, detail: String(e?.message ?? e) }));
+    return true; // async response
   }
   return false;
 });

@@ -174,6 +174,16 @@ test('restart() drops the socket and connects with the new settings at once', as
   assert.equal(r.socket().sent[0].token, 'new');
 });
 
+test('sendLog sends a log message only while connected', async () => {
+  const r = rig();
+  assert.equal(r.conn.sendLog('info', 'early'), false);
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  assert.equal(r.conn.sendLog('warn', 'buttons=[x]'), true);
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'log', level: 'warn', text: 'buttons=[x]' });
+});
+
 test('unknown messages and invalid JSON are ignored', async () => {
   const r = rig();
   r.conn.start();
