@@ -20,7 +20,7 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
   - *API providers* (OpenAI API, OpenAI-compatible endpoints): `fetch` from the service worker with the API
     key in extension storage. There is no chat page, so they need a place to show the answer (planned: an
     optional `answer` message back to the app's indicator panel, or an extension side panel).
-- Only Gemini is built and proven in Phases 7–10; the others come after, each with its own real test.
+- Only Gemini is built and proven in Phases 7–10; the others come after (Phases 13–15), each with its own real test.
 
 ## Phases
 
@@ -120,7 +120,7 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
 
 ## Later (after the Gemini version is done)
 
-- [ ] **Phase 12 — ChatGPT web provider** (chatgpt.com): selectors + busy/appeared checks, real test.
-- [ ] **Phase 13 — Claude web provider** (claude.ai): selectors + busy/appeared checks, real test.
-- [ ] **Phase 14 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
+- [ ] **Phase 13 — ChatGPT web provider** (chatgpt.com): selectors + busy/appeared checks, real test.
+- [ ] **Phase 14 — Claude web provider** (claude.ai): selectors + busy/appeared checks, real test.
+- [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).
