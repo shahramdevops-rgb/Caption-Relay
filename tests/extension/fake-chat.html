@@ -11,12 +11,13 @@
   </style>
 </head>
 <body>
-  <h1>Web-chat delivery tests (fake Gemini and ChatGPT pages)</h1>
+  <h1>Web-chat delivery tests (fake Gemini, ChatGPT and Claude pages)</h1>
   <div id="stage"></div>
   <pre id="results">running…</pre>
 
   <script src="../../extension/providers/gemini/selectors.js"></script>
   <script src="../../extension/providers/chatgpt/selectors.js"></script>
+  <script src="../../extension/providers/claude/selectors.js"></script>
   <script src="../../extension/providers/webchat.js"></script>
   <script>
     // Builds a Gemini-like page. Options change how the fake behaves.
@@ -399,6 +400,113 @@
         expect(r.report.input === 'form[data-chatgpt-composer] div.ProseMirror[contenteditable="true"]', 'input selector: ' + r.report.input);
         expect(r.report.sendButtonAfterInsert === 'form[data-chatgpt-composer] button[type="submit"]', 'send: ' + r.report.sendButtonAfterInsert);
         expect(r.report.stopButton === null && !r.report.busy, 'busy while idle: ' + r.report.stopButton);
+        return r.detail;
+      });
+
+      // ---- Phase 14: Claude-like page ----
+      // Structure as on claude.ai (2026-11-13): <fieldset> with a Tiptap editor
+      // <div data-testid="chat-input" contenteditable role="textbox">, a microphone button, and
+      // <button data-testid="chat-input-send"> (always shown, disabled while empty). While answering,
+      // <button data-testid="chat-input-stop"> is shown and the send button is hidden.
+      function buildClaude(o = {}) {
+        const stage = document.getElementById('stage');
+        stage.innerHTML = '';
+        const chat = document.createElement('div');
+        const fs = document.createElement('fieldset');
+        const box = document.createElement('div');
+        box.className = 'tiptap ProseMirror';
+        box.contentEditable = 'true';
+        box.setAttribute('role', 'textbox');
+        box.setAttribute('data-testid', 'chat-input');
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.setAttribute('aria-label', o.persian ? 'میکروفون' : 'Microphone');
+        mic.addEventListener('click', () => (window.__claudeMicClicked = true));
+        const send = document.createElement('button');
+        send.type = 'button';
+        send.setAttribute('data-testid', 'chat-input-send');
+        send.setAttribute('aria-label', o.persian ? 'ارسال پیام' : 'Send message');
+        const stop = document.createElement('button');
+        stop.type = 'button';
+        stop.setAttribute('data-testid', 'chat-input-stop');
+        stop.setAttribute('aria-label', o.persian ? 'توقف پاسخ' : 'Stop response');
+        stop.addEventListener('click', () => (window.__claudeStopClicked = true));
+        fs.append(box, mic, send, stop);
+        stage.append(chat, fs);
+        if (o.draft) box.innerHTML = `<p>${o.draft}</p>`;
+        const update = () => {
+          send.style.display = o.busy ? 'none' : '';
+          stop.style.display = o.busy ? '' : 'none';
+          send.disabled = box.innerText.trim() === '';
+        };
+        box.addEventListener('input', update);
+        update();
+        send.addEventListener('click', () => {
+          if (send.disabled || o.busy) return;
+          const turn = document.createElement('div');
+          turn.setAttribute('data-testid', 'user-message');
+          turn.textContent = box.innerText.trim();
+          chat.appendChild(turn);
+          box.innerHTML = '';
+          update();
+        });
+        const endBusy = () => { o.busy = false; update(); };
+        return { box, chat, endBusy };
+      }
+      const cl = globalThis.CaptionRelaySelectors.claude;
+      const clTurns = (p) => [...p.chat.querySelectorAll('[data-testid="user-message"]')].map((q) => q.textContent);
+
+      await check('Claude: empty box → sent via data-testid="chat-input-send"', async () => {
+        const p = buildClaude();
+        const ack = await chatApi.deliver(cl, 'What is a span in C#?');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(ack.detail.includes('button[data-testid="chat-input-send"]'), ack.detail);
+        expect(clTurns(p)[0] === 'What is a span in C#?', 'turn: ' + clTurns(p)[0]);
+        return ack.detail;
+      });
+
+      await check("Claude: user's draft is kept and sent before our text", async () => {
+        const p = buildClaude({ draft: 'My own draft' });
+        const ack = await chatApi.deliver(cl, 'caption text');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/^My own draft\s+caption text$/.test(clTurns(p)[0]), 'turn: ' + JSON.stringify(clTurns(p)[0]));
+      });
+
+      await check('Claude: answering (Persian UI, chat-input-stop) → busy, stop never clicked', async () => {
+        window.__claudeStopClicked = false;
+        const p = buildClaude({ busy: true, persian: true });
+        const ack = await chatApi.deliver(cl, 'must wait');
+        expect(ack.status === 'busy', JSON.stringify(ack));
+        expect(!window.__claudeStopClicked, 'stop was clicked');
+        expect(p.box.innerText.trim() === '', 'box: ' + p.box.innerText);
+      });
+
+      await check('Claude: two sends while answering → merged into ONE message when the answer ends', async () => {
+        window.__claudeStopClicked = false;
+        const p = buildClaude({ busy: true });
+        const results = [];
+        const onResult = (ids, a) => results.push([ids.join(','), a.status]);
+        const a1 = await chatApi.deliverOrQueue(cl, 'first part', 'c-1', { onResult, settleMs: 50 });
+        const a2 = await chatApi.deliverOrQueue(cl, 'second part', 'c-2', { onResult, settleMs: 50 });
+        expect(a1.status === 'queued' && a2.status === 'queued', JSON.stringify([a1, a2]));
+        await new Promise((r) => setTimeout(r, 200));
+        expect(clTurns(p).length === 0, 'submitted while answering!');
+        p.endBusy();
+        expect(await waitFor(() => results.length === 1), 'no result');
+        expect(results[0][0] === 'c-1,c-2' && results[0][1] === 'sent', JSON.stringify(results));
+        expect(clTurns(p).length === 1 && /^first part\s+second part$/.test(clTurns(p)[0]), 'turns: ' + JSON.stringify(clTurns(p)));
+        expect(!window.__claudeStopClicked && !window.__claudeMicClicked, 'stop or mic clicked');
+      });
+
+      await check('Claude Test: inserts without submitting and reports selectors', async () => {
+        const p = buildClaude();
+        const r = await chatApi.test(cl, 'CaptionRelay test');
+        expect(r.ok, JSON.stringify(r));
+        expect(p.box.innerText.trim() === 'CaptionRelay test', 'box: ' + p.box.innerText);
+        expect(clTurns(p).length === 0, 'submitted!');
+        expect(r.report.input === 'div[data-testid="chat-input"][contenteditable="true"]', 'input selector: ' + r.report.input);
+        expect(r.report.sendButtonAfterInsert === 'button[data-testid="chat-input-send"]' && r.report.sendButtonEnabled, 'send: ' + r.report.sendButtonAfterInsert);
+        expect(!r.report.busy, 'busy while idle');
         return r.detail;
       });
 

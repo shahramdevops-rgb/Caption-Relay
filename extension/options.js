@@ -8,7 +8,7 @@ async function load() {
   for (const p of listProviders()) {
     providerSelect.add(new Option(p.name, p.id));
   }
-  for (const later of ['Claude', 'OpenAI API']) {
+  for (const later of ['OpenAI API']) {
     const o = new Option(`${later} (later)`, '');
     o.disabled = true;
     providerSelect.add(o);

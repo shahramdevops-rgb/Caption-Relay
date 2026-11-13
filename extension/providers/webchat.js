@@ -1,4 +1,4 @@
-// Shared delivery logic for web-chat providers (Gemini, ChatGPT; Claude later), run as a content script.
+// Shared delivery logic for web-chat providers (Gemini, ChatGPT, Claude), run as a content script.
 // Each provider only supplies a selector set (see providers/<id>/selectors.js).
 // Always (re)defined: after an extension reload an old copy may still be in the page; it must be replaced.
 (() => {

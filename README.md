@@ -1,6 +1,6 @@
 # CaptionRelay
 
-One global hotkey sends everything Windows Live Captions heard since your last send into your open Gemini or ChatGPT web
+One global hotkey sends everything Windows Live Captions heard since your last send into your open Gemini, ChatGPT or Claude web
 chat and submits it — without touching the mouse, without typing, and without moving your focus away from the
 window you are working in.
 
@@ -22,7 +22,7 @@ window you are working in.
 | Folder | What |
 |---|---|
 | `app/` | Windows tray app (C# .NET 8, WinForms). Reads Live Captions, keeps the transcript, global hotkeys, indicator, loopback WebSocket server. |
-| `extension/` | Chrome/Edge extension (Manifest V3, plain JavaScript). Receives text and submits it in Gemini or ChatGPT (chosen on the options page). |
+| `extension/` | Chrome/Edge extension (Manifest V3, plain JavaScript). Receives text and submits it in Gemini, ChatGPT or Claude (chosen on the options page). |
 | `tests/` | xUnit tests (C#), Node tests and a browser test page for the extension, real Live Captions recordings. |
 | `tools/` | Test helpers: caption recorder, TTS speaker, fake extension client, key/UI test scripts. |
 | `docs/protocol.md` | The app ↔ extension WebSocket protocol. |
@@ -33,7 +33,7 @@ window you are working in.
 
 - Windows 11 with **Live Captions** (Win+Ctrl+L).
 - .NET 8 Desktop Runtime (to run) / .NET SDK 8+ (to build).
-- Chrome 120+ or Edge, signed in to Gemini or ChatGPT (pick the chat under **Provider** on the extension options page).
+- Chrome 120+ or Edge, signed in to Gemini, ChatGPT or Claude (pick the chat under **Provider** on the extension options page).
 
 ## Build and run
 
@@ -118,7 +118,7 @@ Created next to the exe; edit it while the app is closed (or use the menu for th
 |---|---|
 | `Gemini not connected` | Is the extension enabled, is the token pasted, is the port the same? Click **Reconnect** on the extension options page. |
 | `Live Captions not available` | Start Live Captions (Win+Ctrl+L) or use **Reconnect Live Captions**. |
-| `Error: input not found` / `send button not found` | The site changed its page. Selectors live in `extension/providers/<gemini|chatgpt>/selectors.js`; the log shows the buttons the extension saw. Reload the extension after fixing. |
+| `Error: input not found` / `send button not found` | The site changed its page. Selectors live in `extension/providers/<gemini|chatgpt|claude>/selectors.js`; the log shows the buttons the extension saw. Reload the extension after fixing. |
 | `Error: not logged in` | Sign in to Gemini in that browser. |
 | `No response` | The extension did not answer within 3 s; the text is kept for the next send. |
 | `Port 47321 in use` | Another program uses the port: change `port` in config.json and in the extension options. |

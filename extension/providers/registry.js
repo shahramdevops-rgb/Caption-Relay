@@ -1,9 +1,10 @@
 // All providers the extension can deliver to. The Windows app and the protocol do not know about them
-// (see ROADMAP.md, "provider abstraction"). Add Claude / API providers here later.
+// (see ROADMAP.md, "provider abstraction"). Add API providers here later.
 import { gemini } from './gemini/provider.js';
 import { chatgpt } from './chatgpt/provider.js';
+import { claude } from './claude/provider.js';
 
-export const PROVIDERS = { gemini, chatgpt };
+export const PROVIDERS = { gemini, chatgpt, claude };
 export const DEFAULT_PROVIDER = 'gemini';
 
 export function getProvider(id) {

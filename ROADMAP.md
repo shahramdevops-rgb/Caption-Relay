@@ -130,6 +130,9 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       script waits up to 3 s for the editor while the page hydrates. Real test 2026-11-13 (Free plan, English UI):
       send, draft kept, busy → queue → merge, minimized window (send + queue), fresh page load, options Test, and a
       Gemini send after the refactor.
-- [ ] **Phase 14 — Claude web provider** (claude.ai): selectors + busy/appeared checks, real test.
+- [x] **Phase 14 — Claude web provider** (claude.ai): selectors + busy/appeared checks, real test.
+      Same pattern as ChatGPT (config + selectors; claude.ai has stable data-testid attributes). Real test 2026-11-13
+      (Haiku, English UI): options Test, send, draft kept, busy → queue → merge, minimized window (send + queue),
+      fresh page load.
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).
