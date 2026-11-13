@@ -1,4 +1,4 @@
-// Shared delivery logic for web-chat providers (Gemini now; ChatGPT/Claude later), run as a content script.
+// Shared delivery logic for web-chat providers (Gemini, ChatGPT; Claude later), run as a content script.
 // Each provider only supplies a selector set (see providers/<id>/selectors.js).
 // Always (re)defined: after an extension reload an old copy may still be in the page; it must be replaced.
 (() => {
@@ -125,7 +125,7 @@
   const SEND_LIKE = /send|submit|ارسال|فرستادن/i;
   function looksLikeSend(btn) {
     // (btn.type is not used: every <button> defaults to type "submit".)
-    const text = [btn.className, btn.getAttribute('aria-label'), btn.getAttribute('data-test-id'), btn.getAttribute('mattooltip')]
+    const text = [btn.className, btn.getAttribute('aria-label'), btn.getAttribute('data-test-id'), btn.getAttribute('data-testid'), btn.getAttribute('mattooltip')]
       .filter(Boolean)
       .join(' ');
     return SEND_LIKE.test(text);
@@ -209,7 +209,9 @@
   async function deliver(sel, text, opts = {}) {
     const t0 = performance.now();
     const diag = opts.onDiag ?? (() => {});
-    const found = findBox(sel);
+    // Right after a (re)load the page may still be hydrating (ChatGPT first shows a plain placeholder): wait a moment.
+    let found = findBox(sel);
+    if (!found && !find(sel.signedOut)) found = await waitFor(() => findBox(sel), opts.inputWaitMs ?? 3000);
     if (!found) {
       diag(`deliver: no input. ${snapshot(sel)}`);
       return { status: 'error', detail: missingBoxError(sel) };
@@ -343,6 +345,11 @@
     return { ok: !!method, detail: method ? `inserted with ${method} (not submitted)` : 'could not insert text', report };
   }
 
+  /** Up to 4 plain class names (Tailwind variants like hover:… or w-[…] are left out to keep the log short). */
+  function shortClass(el) {
+    return String(el.className?.baseVal ?? el.className ?? '').split(/\s+/).filter((c) => c && !/[:\[\]()!]/.test(c)).slice(0, 4).join(' ');
+  }
+
   /** Which selector of each list matches (no page text is reported). */
   function diagnose(sel) {
     const out = {};
@@ -361,8 +368,9 @@
     }
     out.buttons = container
       ? [...container.querySelectorAll('button')].filter(visible).map((b) =>
-          [`class="${b.className}"`, `aria-label="${b.getAttribute('aria-label') ?? ''}"`,
+          [`class="${shortClass(b)}"`, b.type === 'submit' ? 'type="submit"' : '', `aria-label="${b.getAttribute('aria-label') ?? ''}"`,
             b.getAttribute('data-test-id') ? `data-test-id="${b.getAttribute('data-test-id')}"` : '',
+            b.getAttribute('data-testid') ? `data-testid="${b.getAttribute('data-testid')}"` : '',
             b.disabled ? 'disabled' : ''].filter(Boolean).join(' '))
       : [];
     out.visibility = document.visibilityState;
@@ -370,5 +378,31 @@
     return out;
   }
 
-  globalThis.CaptionRelayWebChat = { deliver, deliverOrQueue, queueLength: () => queue.items.length, test, diagnose, isBusy, find, norm };
+  /** Content-script side of a provider: answers deliver / test / ping requests from the service worker. */
+  function listen(sel, name) {
+    const toWorker = (message) => chrome.runtime.sendMessage(message).catch(() => {});
+    const onDiag = (text) => toWorker({ type: 'captionrelay-diag', level: 'info', text });
+    // Final result of queued sends (submitted after the answer ended, or given up).
+    const onResult = (ids, ack) => toWorker({ type: 'captionrelay-result', ids, status: ack.status, detail: ack.detail });
+
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message?.type === 'captionrelay-deliver') {
+        deliverOrQueue(sel, message.text, message.id, { onDiag, onResult })
+          .then(sendResponse, (e) => sendResponse({ status: 'error', detail: String(e?.message ?? e) }));
+        return true; // async response
+      }
+      if (message?.type === 'captionrelay-test') {
+        test(sel, message.text).then(sendResponse, (e) => sendResponse({ ok: false, detail: String(e?.message ?? e) }));
+        return true;
+      }
+      if (message?.type === 'captionrelay-ping') {
+        sendResponse({ ok: true });
+        return false;
+      }
+      return false;
+    });
+    console.log(TAG, `${name} content script ready`);
+  }
+
+  globalThis.CaptionRelayWebChat = { deliver, deliverOrQueue, queueLength: () => queue.items.length, test, diagnose, isBusy, find, norm, listen };
 })();

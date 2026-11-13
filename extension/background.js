@@ -41,16 +41,17 @@ const connection = new RelayConnection({
 // Extension log lines also go to the app's log (only while connected).
 setForwarder((level, text) => connection.sendLog(level, text));
 
-/** On connect: browser version and the Gemini tabs we could deliver to (no titles or URLs beyond the host). */
+/** On connect: browser version and the active provider's tabs we could deliver to (no titles or URLs). */
 async function reportEnvironment() {
   try {
     const chromeVersion = /Chrome\/([\d.]+)/.exec(navigator.userAgent)?.[1] ?? '?';
-    const tabs = await chrome.tabs.query({ url: 'https://gemini.google.com/*' });
+    const provider = getProvider((await chrome.storage.local.get(DEFAULTS)).provider);
+    const tabs = provider.urlPatterns ? await chrome.tabs.query({ url: provider.urlPatterns }) : [];
     const now = Date.now();
     const list = tabs
       .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
       .map((t) => `#${t.id}${t.active ? ' active' : ''}${t.discarded ? ' discarded' : ''}${t.frozen ? ' frozen' : ''} ${Math.round((now - (t.lastAccessed ?? now)) / 1000)}s ago`);
-    log(`environment: Chrome ${chromeVersion}, Gemini tabs: ${list.length ? list.join(', ') : 'none'}`);
+    log(`environment: Chrome ${chromeVersion}, ${provider.name} tabs: ${list.length ? list.join(', ') : 'none'}`);
   } catch (e) {
     warn('environment report failed', String(e));
   }

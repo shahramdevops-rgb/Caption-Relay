@@ -11,11 +11,12 @@
   </style>
 </head>
 <body>
-  <h1>Web-chat delivery tests (fake Gemini page)</h1>
+  <h1>Web-chat delivery tests (fake Gemini and ChatGPT pages)</h1>
   <div id="stage"></div>
   <pre id="results">running…</pre>
 
   <script src="../../extension/providers/gemini/selectors.js"></script>
+  <script src="../../extension/providers/chatgpt/selectors.js"></script>
   <script src="../../extension/providers/webchat.js"></script>
   <script>
     // Builds a Gemini-like page. Options change how the fake behaves.
@@ -150,7 +151,7 @@
 
       await check('no input → "input not found"', async () => {
         build({ noInput: true });
-        const ack = await chatApi.deliver(sel, 'x');
+        const ack = await chatApi.deliver(sel, 'x', { inputWaitMs: 300 });
         expect(ack.status === 'error' && ack.detail === 'input not found', JSON.stringify(ack));
       });
 
@@ -256,6 +257,148 @@
         expect(p.box.innerText.trim() === 'CaptionRelay test', 'box: ' + p.box.innerText);
         expect(turns(p).length === 0, 'submitted!');
         expect(r.report.input === 'rich-textarea div.ql-editor[contenteditable="true"]', 'input selector: ' + r.report.input);
+        return r.detail;
+      });
+
+      // ---- Phase 13: ChatGPT-like page ----
+      // Structure as on chatgpt.com (2026-11-13): <form data-chatgpt-composer> with a ProseMirror
+      // <div contenteditable role="textbox">, a dictate button and one round button (size-token-button-composer):
+      // "Start Voice" while the box is empty, type="submit" "Send" with text, type="button" "Stop" while answering.
+      // No ids or data-testids. A hidden textarea is added to check that invisible editors are skipped.
+      function buildGpt(o = {}) {
+        const stage = document.getElementById('stage');
+        stage.innerHTML = '';
+        const chat = document.createElement('div');
+        const form = document.createElement('form');
+        form.setAttribute('data-chatgpt-composer', '');
+        form.addEventListener('submit', (e) => e.preventDefault());
+        const hidden = document.createElement('textarea');
+        hidden.name = 'prompt-textarea';
+        hidden.style.display = 'none';
+        const box = document.createElement('div');
+        box.className = 'ProseMirror';
+        box.contentEditable = 'true';
+        box.setAttribute('role', 'textbox');
+        const dictate = document.createElement('button');
+        dictate.type = 'button';
+        dictate.setAttribute('data-dictation-button', 'idle');
+        dictate.setAttribute('aria-label', o.persian ? 'دیکته' : 'Dictate');
+        dictate.addEventListener('click', () => (window.__gptVoiceClicked = true));
+        const btn = document.createElement('button');
+        btn.className = 'size-token-button-composer';
+        form.append(hidden, box, dictate, btn);
+        stage.append(chat, form);
+        if (o.draft) box.innerHTML = `<p>${o.draft}</p>`;
+
+        const update = () => {
+          // o.persian: labels in Persian, so only the structural selectors can match.
+          btn.removeAttribute('data-composer-voice-start');
+          if (o.busy) {
+            btn.type = 'button';
+            btn.setAttribute('aria-label', o.persian ? 'توقف' : 'Stop');
+          } else if (box.innerText.trim() === '' || o.noSendButton) {
+            btn.type = 'button';
+            btn.setAttribute('data-composer-voice-start', 'true');
+            btn.setAttribute('aria-label', o.persian ? 'شروع صدا' : 'Start Voice');
+          } else {
+            btn.type = 'submit';
+            btn.setAttribute('aria-label', o.persian ? 'ارسال' : 'Send');
+          }
+        };
+        box.addEventListener('input', update);
+        update();
+        btn.addEventListener('click', () => {
+          if (btn.type === 'button' && !btn.hasAttribute('data-composer-voice-start')) { window.__gptStopClicked = true; return; }
+          if (btn.type !== 'submit') { window.__gptVoiceClicked = true; return; }
+          const turn = document.createElement('div');
+          turn.setAttribute('data-user-message-bubble', 'true');
+          turn.textContent = box.innerText.trim();
+          chat.appendChild(turn);
+          box.innerHTML = '';
+          if (o.answers) o.busy = true; // starts answering right after a send
+          update();
+        });
+        const endBusy = () => { o.busy = false; update(); };
+        return { box, btn, chat, endBusy };
+      }
+      const gpt = globalThis.CaptionRelaySelectors.chatgpt;
+      const gptTurns = (p) => [...p.chat.querySelectorAll('[data-user-message-bubble="true"]')].map((q) => q.textContent);
+
+      await check('ChatGPT: empty box → sent via the composer submit button', async () => {
+        const p = buildGpt();
+        const ack = await chatApi.deliver(gpt, 'What is dependency injection?');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(ack.detail.includes('form[data-chatgpt-composer] button[type="submit"]'), ack.detail);
+        expect(gptTurns(p)[0] === 'What is dependency injection?', 'turn: ' + gptTurns(p)[0]);
+        return ack.detail;
+      });
+
+      await check("ChatGPT: user's draft is kept and sent before our text", async () => {
+        const p = buildGpt({ draft: 'My own draft' });
+        const ack = await chatApi.deliver(gpt, 'caption text');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/^My own draft\s+caption text$/.test(gptTurns(p)[0]), 'turn: ' + JSON.stringify(gptTurns(p)[0]));
+      });
+
+      await check('ChatGPT: answering (Persian UI, Stop button) → busy, stop never clicked, nothing inserted', async () => {
+        window.__gptStopClicked = false;
+        const p = buildGpt({ busy: true, persian: true });
+        const ack = await chatApi.deliver(gpt, 'must wait');
+        expect(ack.status === 'busy', JSON.stringify(ack));
+        expect(!window.__gptStopClicked, 'stop was clicked');
+        expect(p.box.innerText.trim() === '', 'box: ' + p.box.innerText);
+      });
+
+      await check('ChatGPT: two sends while answering → merged into ONE message when the answer ends', async () => {
+        window.__gptStopClicked = false;
+        const p = buildGpt({ busy: true });
+        const results = [];
+        const onResult = (ids, a) => results.push([ids.join(','), a.status]);
+        const a1 = await chatApi.deliverOrQueue(gpt, 'first part', 'g-1', { onResult, settleMs: 50 });
+        const a2 = await chatApi.deliverOrQueue(gpt, 'second part', 'g-2', { onResult, settleMs: 50 });
+        expect(a1.status === 'queued' && a2.status === 'queued', JSON.stringify([a1, a2]));
+        await new Promise((r) => setTimeout(r, 200));
+        expect(gptTurns(p).length === 0, 'submitted while answering!');
+        p.endBusy();
+        expect(await waitFor(() => results.length === 1), 'no result');
+        expect(results[0][0] === 'g-1,g-2' && results[0][1] === 'sent', JSON.stringify(results));
+        expect(gptTurns(p).length === 1 && /^first part\s+second part$/.test(gptTurns(p)[0]), 'turns: ' + JSON.stringify(gptTurns(p)));
+        expect(!window.__gptStopClicked, 'stop clicked');
+      });
+
+      await check('ChatGPT: starts answering right after the send → still verified as sent', async () => {
+        const p = buildGpt({ answers: true });
+        const ack = await chatApi.deliver(gpt, 'quick answer please');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(gptTurns(p).length === 1, 'turns: ' + gptTurns(p).length);
+      });
+
+      await check('ChatGPT: send button never appears → voice button never clicked, error reported', async () => {
+        window.__gptVoiceClicked = false;
+        buildGpt({ noSendButton: true });
+        const ack = await chatApi.deliver(gpt, 'no send button', { buttonWaitMs: 300, verifyMs: 300 });
+        expect(!window.__gptVoiceClicked, 'the voice button was clicked');
+        expect(ack.status === 'error', JSON.stringify(ack));
+      });
+
+      await check('ChatGPT: editor appears only after load (hydration) → waited for, then sent', async () => {
+        const p = buildGpt();
+        p.box.contentEditable = 'false';
+        setTimeout(() => (p.box.contentEditable = 'true'), 500);
+        const ack = await chatApi.deliver(gpt, 'sent after hydration');
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(gptTurns(p)[0] === 'sent after hydration', 'turn: ' + gptTurns(p)[0]);
+      });
+
+      await check('ChatGPT Test: inserts without submitting, hidden textarea skipped', async () => {
+        const p = buildGpt();
+        const r = await chatApi.test(gpt, 'CaptionRelay test');
+        expect(r.ok, JSON.stringify(r));
+        expect(p.box.innerText.trim() === 'CaptionRelay test', 'box: ' + p.box.innerText);
+        expect(gptTurns(p).length === 0, 'submitted!');
+        expect(r.report.input === 'form[data-chatgpt-composer] div.ProseMirror[contenteditable="true"]', 'input selector: ' + r.report.input);
+        expect(r.report.sendButtonAfterInsert === 'form[data-chatgpt-composer] button[type="submit"]', 'send: ' + r.report.sendButtonAfterInsert);
+        expect(r.report.stopButton === null && !r.report.busy, 'busy while idle: ' + r.report.stopButton);
         return r.detail;
       });
 
