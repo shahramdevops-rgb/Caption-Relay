@@ -12,7 +12,27 @@
     <RootNamespace>CaptionRelay</RootNamespace>
     <AssemblyName>CaptionRelay</AssemblyName>
     <Version>0.1.0</Version>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!--
+    One self-contained exe (no .NET install needed on the target PC): build-exe.ps1 publishes with
+    -p:SingleExe=true and puts it at build\CaptionRelay.exe. WPF/WinForms native libraries are extracted to a temp folder on first start.
+  -->
+  <PropertyGroup Condition="'$(SingleExe)' == 'true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The browser extension travels inside the exe and is unpacked to %LOCALAPPDATA%\CaptionRelay\extension. -->
+    <EmbeddedResource Include="..\extension\**\*" LogicalName="extension/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Tiny loopback Kestrel WebSocket server (no NuGet packages). -->

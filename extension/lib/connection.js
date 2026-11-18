@@ -11,6 +11,7 @@ export class RelayConnection {
    * @param {() => Promise<{port:number, token:string, provider:string}>} o.getSettings
    * @param {(text:string, id:string) => Promise<{status:string, detail?:string, provider?:string}>} o.onSend
    * @param {(state:string) => void} [o.onState]  'off' | 'connecting' | 'on'
+   * @param {() => void} [o.onAuthError]  the app refused the token (the caller may fetch a fresh one)
    * @param {{log:Function, warn:Function}} [o.logger]
    * @param {string} [o.version]
    * @param {number[]} [o.backoffMs]
@@ -22,6 +23,7 @@ export class RelayConnection {
     this.getSettings = o.getSettings;
     this.onSend = o.onSend;
     this.onState = o.onState ?? (() => {});
+    this.onAuthError = o.onAuthError ?? (() => {});
     this.logger = o.logger ?? { log() {}, warn() {} };
     this.version = o.version ?? '0.0.0';
     this.backoffMs = o.backoffMs ?? DEFAULT_BACKOFF_MS;
@@ -85,7 +87,7 @@ export class RelayConnection {
     if (generation !== this.generation) return;
 
     if (!settings.token) {
-      this.lastError = 'Token not set (paste it in the extension options)';
+      this.lastError = 'Token not set (start the CaptionRelay app, or paste the token in the extension options)';
       this.setState('off');
       return; // wait for a settings change
     }
@@ -154,6 +156,7 @@ export class RelayConnection {
       case 'error':
         this.lastError = m.reason === 'bad token' ? 'Wrong token (copy it again from the CaptionRelay tray menu)' : `App error: ${m.reason}`;
         this.logger.warn('app refused the connection:', m.reason);
+        if (m.reason === 'bad token') this.onAuthError();
         break;
       case 'ping':
         this.sendJson({ type: 'pong' });

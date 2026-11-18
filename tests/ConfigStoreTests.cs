@@ -54,7 +54,7 @@ namespace CaptionRelay.Tests
             ConfigStore.Load(path);
 
             string json = File.ReadAllText(path);
-            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "prefix", "minSendChars", "pollMs", "sound", "startLiveCaptions", "indicatorX", "indicatorY", "indicatorVisible", "sessionRetentionDays", "hideLiveCaptions", "allowedExtensionIds", "startWithWindows" })
+            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "prefix", "minSendChars", "pollMs", "sound", "startLiveCaptions", "indicatorX", "indicatorY", "indicatorVisible", "sessionRetentionDays", "hideLiveCaptions", "allowedExtensionIds", "startWithWindows", "extensionSetUp" })
             {
                 Assert.Contains("\"" + key + "\"", json);
             }

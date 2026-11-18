@@ -134,5 +134,15 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       Same pattern as ChatGPT (config + selectors; claude.ai has stable data-testid attributes). Real test 2026-11-13
       (Haiku, English UI): options Test, send, draft kept, busy → queue → merge, minimized window (send + queue),
       fresh page load.
+- [x] **Phase 16 — One exe + guided extension setup**: `build-exe.ps1` → `build\CaptionRelay.exe` (replaced on every build), self-contained
+      single file (73.7 MB, .NET runtime + extension embedded, no other files). Data moved to
+      `%LOCALAPPDATA%\CaptionRelay` (portable mode kept when config.json sits next to the exe). On every start the exe
+      unpacks the extension and registers the native messaging host `com.captionrelay.host` (HKCU, Chrome + Edge); the
+      extension asks it for port + token when it has none or the app refuses its token, so no token copying. First run
+      opens a setup window (open extensions page, path on the clipboard, turns green on connect). Chrome only allows
+      store extensions to be installed by programs, so "Load unpacked" stays one manual step.
+      Measured 2026-11-18: exe starts, extracts 23 files, registers both hosts, shows the setup window; called like
+      Chrome (origin argument + framed stdin), the exe answered with port + token in 162 ms. Not yet done: loading the
+      unpacked extension in real Chrome and the first automatic connection.
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).

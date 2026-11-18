@@ -36,24 +36,44 @@ window you are working in.
 - .NET 8 Desktop Runtime (to run) / .NET SDK 8+ (to build).
 - Chrome 120+ or Edge, signed in to Gemini, ChatGPT or Claude (pick the chat under **Provider** on the extension options page).
 
-## Build and run
+## Quick start: one exe
+
+`CaptionRelay.exe` is a single self-contained file. It includes the app, the .NET runtime and the browser extension,
+so the PC needs nothing installed besides Windows 11 and Chrome (or Edge).
+
+1. Run `CaptionRelay.exe` (from anywhere: Desktop, Downloads …). Only one instance runs at a time.
+2. On first start it unpacks the extension to `%LOCALAPPDATA%\CaptionRelay\extension`, registers itself so the
+   extension can get the token automatically, starts Live Captions and opens **Connect your browser**.
+3. In that window: **Open Chrome extensions** → turn on **Developer mode** → **Load unpacked** → in the folder window
+   press **Ctrl+V** in the *Folder* box (the path is already copied) → **Select Folder**.
+4. The window turns green: **Connected**. Nothing to paste: port and token reach the extension by themselves.
+
+Chrome does not let programs install extensions that are not on the Chrome Web Store, so step 3 is the one manual
+step, done once. The setup window can be opened again from the tray menu (**Set up browser extension…**).
+
+## Build
 
 ```
 dotnet build CaptionRelay.sln
 dotnet test CaptionRelay.sln
-dotnet publish app/CaptionRelay.csproj -c Release -o publish
+powershell -ExecutionPolicy Bypass -File build-exe.ps1     # → build\CaptionRelay.exe (single self-contained exe)
 ```
 
-Run `publish\CaptionRelay.exe` (or the desktop shortcut). Only one instance runs at a time. On first start it creates
-`config.json` next to the exe with a random token, and starts Live Captions if it is not running.
+The exe always lands at `build\CaptionRelay.exe` and every build replaces it (a running copy there is stopped,
+replaced and started again).
 
-## Install the extension (once)
+`dotnet publish app/CaptionRelay.csproj -c Release -o publish` still makes a small framework-dependent build (needs the
+.NET 8 Desktop and ASP.NET Core runtimes).
+
+## Install the extension by hand (developers)
 
 1. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
 2. **Load unpacked** → choose the `extension` folder. The extension id is always `hpmjjnjmlhbolpmeafdkmdldlfmoaaee`.
-3. Right-click the indicator (or the tray icon) → **Copy token (for the extension)**.
-4. Click the extension's icon → paste the token → **Save**. The status turns green and the badge shows **ON**.
-5. Optional: the **Test** button inserts "CaptionRelay test" into your Gemini box without sending it and shows which
+3. While the app runs, the extension gets port and token from it (native messaging host `com.captionrelay.host`,
+   registered in HKCU by the app on every start). Without that: right-click the indicator → **Copy token (for the
+   extension)**, click the extension's icon, paste the token → **Save**.
+4. The status turns green and the badge shows **ON**.
+5. Optional: the **Test** button inserts "CaptionRelay test" into your chat box without sending it and shows which
    page elements were found.
 
 Use the extension in one browser profile only: if two browsers are connected, the most recently connected one
@@ -89,7 +109,8 @@ Text on the Live Captions screen when the app starts belongs to an earlier conve
 
 ## config.json
 
-Created next to the exe; edit it while the app is closed (or use the menu for the common options).
+Lives in `%LOCALAPPDATA%\CaptionRelay\` (or next to the exe if a `config.json` is already there: portable mode); edit
+it while the app is closed (or use the menu for the common options).
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -106,9 +127,15 @@ Created next to the exe; edit it while the app is closed (or use the menu for th
 | `indicatorX/Y`, `indicatorVisible` | — | Indicator position and visibility. |
 | `sessionRetentionDays` | 30 | Delete `sessions/*.txt` older than this (0 = keep). |
 | `allowedExtensionIds` | `[]` | Restrict which extension ids may connect (empty = any extension with the token; web pages are always refused). |
+| `extensionSetUp` | false | Set after the first extension connection; while false the setup window opens at start. |
 
 ## Files
 
+All in `%LOCALAPPDATA%\CaptionRelay\` (or next to the exe in portable mode):
+
+- `extension/` — the browser extension unpacked from the exe (Chrome loads it from here; refreshed on every start —
+  after an update click the reload icon on the extension in `chrome://extensions`).
+- `native-host.json` — native messaging host manifest (points Chrome at the exe for the automatic token).
 - `sessions/yyyy-MM-dd_HHmm.txt` — the full conversation with `[SENT hh:mm:ss]` / `[SKIPPED hh:mm:ss]` markers.
 - `logs/captionrelay-yyyyMMdd.log` — diagnostics (never the conversation text; the token only as a fingerprint).
   The extension also reports page diagnostics here (which buttons it found, whether the tab was hidden …).

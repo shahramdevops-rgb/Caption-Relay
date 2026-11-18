@@ -30,6 +30,9 @@ node --test tests/extension/*.test.mjs
   (file://) and check that every result is green.
 - Run the app from `app/bin/Debug/...` or publish it with
   `dotnet publish app/CaptionRelay.csproj -c Release -o publish`.
+- The single self-contained exe for users: `powershell -ExecutionPolicy Bypass -File build-exe.ps1`
+  → `build\CaptionRelay.exe` (the `extension` folder is embedded in it). Every build replaces that file; rebuild it
+  after each code change so it is always current.
 - Load the extension with `chrome://extensions` → Developer mode → Load unpacked → the `extension` folder.
 
 ## How the code is organised

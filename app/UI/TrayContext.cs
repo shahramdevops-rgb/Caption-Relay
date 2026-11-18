@@ -38,6 +38,7 @@ namespace CaptionRelay.UI
         private string? _lastProvider;
         private IntPtr _previousForeground;
         private bool? _lastAllOk;
+        private SetupForm? _setup;
 
         public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow)
         {
@@ -57,6 +58,7 @@ namespace CaptionRelay.UI
             _menu.Items.Add(_hideLcItem);
             _menu.Items.Add(_startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows()) { Checked = config.StartWithWindows });
             _menu.Items.Add(new ToolStripSeparator());
+            _menu.Items.Add(new ToolStripMenuItem("Set up browser extension…", null, (_, _) => ShowSetup()));
             _menu.Items.Add(new ToolStripMenuItem("Open sessions folder", null, (_, _) => OpenSessions()));
             _menu.Items.Add(new ToolStripMenuItem("Copy token (for the extension)", null, (_, _) => CopyToken()));
             _menu.Items.Add(new ToolStripMenuItem("Open config", null, (_, _) => OpenConfig()));
@@ -114,6 +116,49 @@ namespace CaptionRelay.UI
             }
 
             Log.Info($"UI ready (indicator {(config.IndicatorVisible ? "shown" : "hidden")} at {_indicator.PillLocation.X},{_indicator.PillLocation.Y}).");
+
+            if (!config.ExtensionSetUp)
+            {
+                // First run: give an already installed extension a moment to connect before showing the guide.
+                var firstRun = new Timer { Interval = 3000 };
+                firstRun.Tick += (_, _) =>
+                {
+                    firstRun.Dispose();
+                    if (!_config.ExtensionSetUp && !_relay.IsConnected)
+                    {
+                        ShowSetup();
+                    }
+                };
+                firstRun.Start();
+            }
+        }
+
+        private void ShowSetup()
+        {
+            if (_setup != null && !_setup.IsDisposed)
+            {
+                _setup.WindowState = FormWindowState.Normal;
+                _setup.Activate();
+                return;
+            }
+
+            Log.Info("Showing the browser extension setup window.");
+            _setup = new SetupForm(AppPaths.ExtensionDir, () => _relay.IsConnected);
+            _setup.Connected += MarkExtensionSetUp;
+            _setup.FormClosed += (_, _) => _setup = null;
+            _setup.Show();
+        }
+
+        private void MarkExtensionSetUp()
+        {
+            if (_config.ExtensionSetUp)
+            {
+                return;
+            }
+
+            _config.ExtensionSetUp = true;
+            SaveConfig();
+            Log.Info("Browser extension set up (first connection).");
         }
 
         protected override void ExitThreadCore()
@@ -127,6 +172,7 @@ namespace CaptionRelay.UI
             if (disposing)
             {
                 _timer.Dispose();
+                _setup?.Dispose();
                 _tray.Visible = false;
                 _tray.Dispose();
                 _menu.Dispose();
@@ -198,6 +244,11 @@ namespace CaptionRelay.UI
                 string provider = Provider();
                 _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail, _controller.QueuedCount);
                 _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, s.PendingWords, _relay.StartError);
+
+                if (connected && !_config.ExtensionSetUp)
+                {
+                    MarkExtensionSetUp();
+                }
 
                 bool allOk = s.CaptionsAvailable && connected;
                 if (allOk != _lastAllOk)

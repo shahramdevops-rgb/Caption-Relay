@@ -20,7 +20,7 @@ class FakeSocket {
   drop() { this.readyState = 3; this.onclose?.(); }
 }
 
-function rig({ token = 'secret', port = 47321, onSend } = {}) {
+function rig({ token = 'secret', port = 47321, onSend, onAuthError } = {}) {
   FakeSocket.all = [];
   const timers = [];
   const states = [];
@@ -30,6 +30,7 @@ function rig({ token = 'secret', port = 47321, onSend } = {}) {
     getSettings: async () => settings,
     onSend: onSend ?? (async () => ({ status: 'sent', provider: 'gemini' })),
     onState: (s) => states.push(s),
+    onAuthError,
     version: '0.1.0',
     setTimeoutFn: (f, ms) => { const t = { f, ms, cancelled: false }; timers.push(t); return t; },
     clearTimeoutFn: (t) => { t.cancelled = true; },
@@ -203,4 +204,17 @@ test('unknown messages and invalid JSON are ignored', async () => {
   r.socket().receive({ type: 'something-new' });
   r.socket().onmessage({ data: 'not json' });
   assert.equal(r.socket().sent.length, 1); // only the hello
+});
+
+test('a refused token calls onAuthError (so the extension can fetch a fresh one); other errors do not', async () => {
+  let calls = 0;
+  const r = rig({ onAuthError: () => calls++ });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'error', reason: 'protocol' });
+  assert.equal(calls, 0);
+  r.socket().receive({ type: 'error', reason: 'bad token' });
+  assert.equal(calls, 1);
+  assert.match(r.conn.status().lastError, /Wrong token/);
 });

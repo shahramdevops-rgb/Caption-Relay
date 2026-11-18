@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Windows.Forms;
 using CaptionRelay.Captions;
 using CaptionRelay.Config;
@@ -6,6 +7,7 @@ using CaptionRelay.Infrastructure;
 using CaptionRelay.Input;
 using CaptionRelay.Relay;
 using CaptionRelay.Sending;
+using CaptionRelay.Setup;
 using CaptionRelay.UI;
 
 namespace CaptionRelay
@@ -13,8 +15,17 @@ namespace CaptionRelay
     internal static class Program
     {
         [STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
+            // Started by Chrome/Edge as the native messaging host: answer with port + token and exit
+            // (no window, no single-instance check, no log file shared with the running app).
+            if (NativeHost.IsNativeHostLaunch(args))
+            {
+                using Stream stdin = Console.OpenStandardInput();
+                using Stream stdout = Console.OpenStandardOutput();
+                return NativeHost.Run(stdin, stdout, args[0], () => ConfigStore.Load(AppPaths.ConfigFile).Config);
+            }
+
             // Must run before any window (including a MessageBox) is created.
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             Application.EnableVisualStyles();
@@ -37,7 +48,7 @@ namespace CaptionRelay
             Application.ThreadException += (_, e) => Log.Error("Unhandled UI-thread exception", e.Exception);
             AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("Unhandled exception", e.ExceptionObject as Exception);
 
-            Log.Info($"{AppInfo.Name} {AppInfo.Version} starting (pid {Environment.ProcessId}, dir {AppPaths.BaseDir})");
+            Log.Info($"{AppInfo.Name} {AppInfo.Version} starting (pid {Environment.ProcessId}, exe dir {AppPaths.ExeDir}, data dir {AppPaths.DataDir})");
 
             ConfigLoadResult loaded;
             try
@@ -76,6 +87,8 @@ namespace CaptionRelay
                     Log.Warn("Could not refresh the startup entry", ex);
                 }
             }
+
+            InstallBrowserParts();
 
             int deleted = SessionWriter.DeleteOld(AppPaths.SessionsDir, config.SessionRetentionDays);
             if (deleted > 0)
@@ -153,6 +166,41 @@ namespace CaptionRelay
 
             Log.Info("Exiting normally.");
             return 0;
+        }
+
+        /// <summary>
+        /// Unpacks the extension embedded in the exe and registers the native messaging host (HKCU, no admin), on
+        /// every start so a moved exe or a newer build keeps working. Failures are logged, never fatal.
+        /// </summary>
+        private static void InstallBrowserParts()
+        {
+            try
+            {
+                bool existed = File.Exists(Path.Combine(AppPaths.ExtensionDir, "manifest.json"));
+                int embedded = ExtensionInstaller.EmbeddedFileCount();
+                int written = ExtensionInstaller.Extract(AppPaths.ExtensionDir);
+                Log.Info($"Extension folder {AppPaths.ExtensionDir}: {embedded} files, {written} updated.");
+                if (written > 0 && existed)
+                {
+                    Log.Info("Extension files changed; reload the extension in chrome://extensions if it was already loaded.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not unpack the browser extension", ex);
+            }
+
+            try
+            {
+                string exe = Environment.ProcessPath ?? Application.ExecutablePath;
+                ExtensionInstaller.WriteHostManifest(AppPaths.NativeHostManifest, exe);
+                ExtensionInstaller.RegisterHost(AppPaths.NativeHostManifest, Microsoft.Win32.Registry.CurrentUser);
+                Log.Info($"Native messaging host {NativeHost.HostName} registered for Chrome and Edge.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not register the native messaging host", ex);
+            }
         }
 
         private static Hotkey ParseHotkey(string text, string fallback, string name)

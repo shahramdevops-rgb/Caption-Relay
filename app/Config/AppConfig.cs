@@ -54,5 +54,10 @@ namespace CaptionRelay.Config
         /// the token. Web pages (http/https origins) are always rejected.
         /// </summary>
         public string[] AllowedExtensionIds { get; set; } = new string[0];
+
+        /// <summary>
+        /// Set once a browser extension has connected. Until then the app opens the extension setup window at start.
+        /// </summary>
+        public bool ExtensionSetUp { get; set; }
     }
 }

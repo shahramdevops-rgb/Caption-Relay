@@ -4,9 +4,43 @@ import { getProvider, DEFAULT_PROVIDER } from './providers/registry.js';
 import { log, warn, setForwarder } from './lib/log.js';
 
 const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER };
+const NATIVE_HOST = 'com.captionrelay.host';
+const NATIVE_RETRY_MS = 20000;
+let lastNativeFetch = 0;
+
+/**
+ * Asks the CaptionRelay app (native messaging host, registered by the app's exe) for its port and token and
+ * stores them, so nobody has to copy the token by hand. Returns true when stored settings changed. Throttled:
+ * Chrome starts a process for every call.
+ */
+async function fetchFromApp(reason) {
+  const now = Date.now();
+  if (now - lastNativeFetch < NATIVE_RETRY_MS) return false;
+  lastNativeFetch = now;
+  let reply;
+  try {
+    reply = await chrome.runtime.sendNativeMessage(NATIVE_HOST, { type: 'getConfig' });
+  } catch (e) {
+    warn(`could not ask the app for the token (${reason}): ${e?.message ?? e}`);
+    return false;
+  }
+  if (reply?.type !== 'config' || !reply.token) {
+    warn(`app did not give a token (${reason}): ${reply?.reason ?? 'no reply'}`);
+    return false;
+  }
+  const current = await chrome.storage.local.get(DEFAULTS);
+  if (current.token === reply.token && current.port === reply.port) return false;
+  log(`token and port received from the app (${reason})`);
+  await chrome.storage.local.set({ token: reply.token, port: reply.port }); // onChanged reconnects
+  return true;
+}
 
 async function getSettings() {
-  return chrome.storage.local.get(DEFAULTS);
+  const settings = await chrome.storage.local.get(DEFAULTS);
+  if (!settings.token && (await fetchFromApp('no token'))) {
+    return chrome.storage.local.get(DEFAULTS);
+  }
+  return settings;
 }
 
 async function deliver(text, id) {
@@ -34,6 +68,7 @@ const connection = new RelayConnection({
     updateBadge(state);
     if (state === 'on') reportEnvironment();
   },
+  onAuthError: () => fetchFromApp('token refused'),
   logger: { log, warn },
   version: chrome.runtime.getManifest().version,
 });
