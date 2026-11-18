@@ -218,3 +218,15 @@ test('a refused token calls onAuthError (so the extension can fetch a fresh one)
   assert.equal(calls, 1);
   assert.match(r.conn.status().lastError, /Wrong token/);
 });
+
+test('status() carries the app hotkeys from welcome (null when an older app does not send them)', async () => {
+  const r = rig();
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  assert.equal(r.conn.status().app, null);
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1, sendKey: 'Ctrl+Shift', skipKey: 'F9' });
+  assert.deepEqual(r.conn.status().app, { name: 'CaptionRelay', version: '0.1.0', sendKey: 'Ctrl+Shift', skipKey: 'F9' });
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.0.9', protocol: 1 });
+  assert.equal(r.conn.status().app.sendKey, null);
+});

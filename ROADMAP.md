@@ -144,5 +144,10 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       Measured 2026-11-18: exe starts, extracts 23 files, registers both hosts, shows the setup window; called like
       Chrome (origin argument + framed stdin), the exe answered with port + token in 162 ms. Not yet done: loading the
       unpacked extension in real Chrome and the first automatic connection.
+- [x] **Phase 17 — Extension popup**: the toolbar icon opens a popup (no new tab) with an on/off switch (off =
+      disconnected, badge grey OFF, alarms do not reconnect), live status, the chat to deliver to, and the app's
+      hotkeys with what they do. The keys come from new optional `welcome` fields `sendKey` / `skipKey` (last known
+      keys cached for when the app is not running). "All settings" opens the options page. Checked in Chrome with a
+      stubbed chrome.* API: connected, turned off and not-connected states, light/dark colours.
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).

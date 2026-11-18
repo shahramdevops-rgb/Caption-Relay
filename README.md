@@ -99,6 +99,17 @@ receives the text.
 
 Text on the Live Captions screen when the app starts belongs to an earlier conversation and is ignored.
 
+## Extension popup
+
+Click the CaptionRelay icon in the browser toolbar (pin it via the puzzle piece) to open its popup:
+
+- **On/off switch**: off disconnects the extension from the app (badge grey `OFF`); the hotkeys then send nothing and
+  the app keeps the text until you turn it back on.
+- **Status**: connected / not connected (with the reason) / turned off.
+- **Deliver to**: Gemini, ChatGPT or Claude.
+- **Shortcuts**: the app's send and skip keys (as set in config.json) and what each one does.
+- **All settings** opens the full options page (port, token, Test).
+
 ## Indicator and tray menu
 
 - Dots: Live Captions connected / extension connected (the label is the chat the extension delivers to).

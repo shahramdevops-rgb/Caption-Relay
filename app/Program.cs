@@ -135,6 +135,8 @@ namespace CaptionRelay
                 Port = config.Port,
                 Token = config.Token,
                 AllowedExtensionIds = config.AllowedExtensionIds,
+                SendKey = sendKey.ToString(),
+                SkipKey = skipKey.ToString(),
             });
             relay.ConnectionChanged += connected => Log.Info(connected ? $"Extension connected: {relay.ActiveClient}." : "No extension connected.");
             relay.StartAsync().GetAwaiter().GetResult();

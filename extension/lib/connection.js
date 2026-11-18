@@ -36,6 +36,7 @@ export class RelayConnection {
     this.timer = null;
     this.lastError = null;
     this.connectedAt = null;
+    this.app = null; // from the last welcome: { name, version, sendKey, skipKey }
     this.stopped = false;
     this.generation = 0; // ignores events of sockets replaced by restart()
   }
@@ -69,7 +70,7 @@ export class RelayConnection {
   }
 
   status() {
-    return { state: this.state, lastError: this.lastError, connectedAt: this.connectedAt, attempt: this.attempt };
+    return { state: this.state, lastError: this.lastError, connectedAt: this.connectedAt, attempt: this.attempt, app: this.app };
   }
 
   async connect() {
@@ -150,6 +151,7 @@ export class RelayConnection {
         this.attempt = 0;
         this.lastError = null;
         this.connectedAt = Date.now();
+        this.app = { name: m.app, version: m.version, sendKey: m.sendKey ?? null, skipKey: m.skipKey ?? null };
         this.setState('on');
         this.logger.log(`connected to ${m.app} ${m.version} (protocol ${m.protocol})`);
         break;

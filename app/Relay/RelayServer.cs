@@ -36,6 +36,12 @@ namespace CaptionRelay.Relay
 
         /// <summary>A connection that sends nothing (not even pong) for this long is closed.</summary>
         public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(65);
+
+        /// <summary>Send hotkey as shown to the user (e.g. "Ctrl+Shift"); sent in welcome for the extension popup.</summary>
+        public string SendKey { get; set; } = "Ctrl+Shift";
+
+        /// <summary>Skip hotkey as shown to the user (e.g. "F9", "None").</summary>
+        public string SkipKey { get; set; } = "F9";
     }
 
     /// <summary>
@@ -308,7 +314,7 @@ namespace CaptionRelay.Relay
             conn.Client = Str(hello.Value, "client") ?? "extension " + (Str(hello.Value, "version") ?? "?");
             conn.Provider = Str(hello.Value, "provider");
             conn.Protocol = hello.Value.TryGetProperty("protocol", out JsonElement p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 1;
-            await conn.SendJsonAsync(new { type = "welcome", app = AppInfo.Name, version = AppInfo.Version, protocol = ProtocolVersion }, CancellationToken.None).ConfigureAwait(false);
+            await conn.SendJsonAsync(new { type = "welcome", app = AppInfo.Name, version = AppInfo.Version, protocol = ProtocolVersion, sendKey = _options.SendKey, skipKey = _options.SkipKey }, CancellationToken.None).ConfigureAwait(false);
             return true;
         }
 

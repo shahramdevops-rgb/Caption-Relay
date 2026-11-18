@@ -169,6 +169,20 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public async Task Welcome_CarriesTheHotkeys()
+        {
+            using RelayServer server = await StartServer(o =>
+            {
+                o.SendKey = "Ctrl+Shift";
+                o.SkipKey = "F8";
+            });
+            using Client c = await Client.Connect(Port);
+            JsonElement? welcome = await c.Receive();
+            Assert.Equal("Ctrl+Shift", welcome!.Value.GetProperty("sendKey").GetString());
+            Assert.Equal("F8", welcome.Value.GetProperty("skipKey").GetString());
+        }
+
+        [Fact]
         public async Task WrongToken_GetsErrorAndIsClosed()
         {
             using RelayServer server = await StartServer();

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CaptionRelay</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="22" height="22">
+    <h1>CaptionRelay</h1>
+    <label class="switch" title="Turn CaptionRelay on or off">
+      <input id="enabled" type="checkbox" role="switch" aria-label="CaptionRelay on/off">
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </header>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Checking…</span></div>
+
+  <section>
+    <label class="field">Deliver to
+      <select id="provider"></select>
+    </label>
+  </section>
+
+  <section id="keys">
+    <h2>Shortcuts</h2>
+    <div class="key-row">
+      <span class="combo" id="sendKey"></span>
+      <span class="what"><b>Send</b> everything said since the last send to <span id="providerName">the chat</span></span>
+    </div>
+    <div class="key-row">
+      <span class="combo" id="skipKey"></span>
+      <span class="what"><b>Skip</b>: forget what was said so far, without sending it</span>
+    </div>
+    <p class="note" id="keysNote">Press and release in any window; your focus stays where it is.</p>
+  </section>
+
+  <footer>
+    <button type="button" id="settings">All settings</button>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
