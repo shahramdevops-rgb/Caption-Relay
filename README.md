@@ -28,6 +28,7 @@ window you are working in.
 | `docs/protocol.md` | The app ↔ extension WebSocket protocol. |
 | `docs/CaptionRelay-course.pdf` | Illustrated design course (Persian, with English interview summaries); sources in `docs/course/`. |
 | `ROADMAP.md` | Phases, what was built and what was measured. |
+| `CONTRIBUTING.md` | How to build, test and send changes. |
 
 ## Requirements
 
