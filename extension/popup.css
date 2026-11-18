@@ -168,6 +168,25 @@ select {
   padding: 5px 6px;
 }
 
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.check small {
+  display: block;
+  color: var(--dim);
+  font-size: 12px;
+}
+
 /* Shortcuts */
 .key-row {
   display: grid;
@@ -176,6 +195,15 @@ select {
   gap: 10px;
   padding: 7px 0;
   border-top: 1px solid var(--border);
+}
+
+.check.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.key-row[hidden] {
+  display: none;
 }
 
 .key-row:first-of-type {

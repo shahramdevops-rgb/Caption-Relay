@@ -132,7 +132,7 @@
         const ack = await chatApi.deliver(sel, 'caption text from the interviewer');
         expect(ack.status === 'sent', JSON.stringify(ack));
         const t = turns(p)[0];
-        expect(/^My own draft question\s+caption text from the interviewer$/.test(t), 'turn: ' + JSON.stringify(t));
+        expect(/^My own draft question caption text from the interviewer$/.test(t), 'turn: ' + JSON.stringify(t));
         return ack.detail;
       });
 
@@ -223,7 +223,7 @@
         return 'stop button never clicked: ' + !window.__stopClicked;
       });
 
-      await check('two sends while answering → merged into ONE message with a blank line', async () => {
+      await check('two sends while answering → merged into ONE message, a space between them', async () => {
         window.__stopClicked = false;
         const p = build({ real: true, busy: true });
         const results = [];
@@ -236,7 +236,7 @@
         expect(await waitFor(() => results.length === 1), 'no result');
         expect(results[0][0] === 'id-3,id-4' && results[0][1] === 'sent', JSON.stringify(results));
         expect(turns(p).length === 1, 'turns: ' + turns(p).length);
-        expect(/^first part\s+second part$/.test(turns(p)[0]), 'turn: ' + JSON.stringify(turns(p)[0]));
+        expect(/^first part second part$/.test(turns(p)[0]), 'turn: ' + JSON.stringify(turns(p)[0]));
         expect(!window.__stopClicked, 'stop clicked');
       });
 
@@ -249,6 +249,111 @@
         expect(turns(p).length === 0, 'submitted');
         expect(chatApi.queueLength() === 0, 'queue not empty');
         return results[0][2];
+      });
+
+      // ---- Paste only (default): insert, never submit ----
+      await check('paste only: inserted after the draft, nothing clicked', async () => {
+        const p = build({ real: true, draft: 'My own draft' });
+        const ack = await chatApi.deliver(sel, 'pasted caption text', { submit: false });
+        expect(ack.status === 'sent' && ack.submitted === false, JSON.stringify(ack));
+        expect(turns(p).length === 0, 'submitted!');
+        expect(/^My own draft pasted caption text$/.test(p.box.innerText.trim()), 'box: ' + JSON.stringify(p.box.innerText));
+        return ack.detail;
+      });
+
+      await check('paste only while answering: pasted at once, not queued, stop never clicked', async () => {
+        window.__stopClicked = false;
+        const p = build({ real: true, busy: true });
+        const results = [];
+        const ack = await chatApi.deliverOrQueue(sel, 'paste during answer', 'id-p', { submit: false, onResult: (ids, a) => results.push(a) });
+        expect(ack.status === 'sent' && ack.submitted === false, JSON.stringify(ack));
+        expect(p.box.innerText.trim() === 'paste during answer', 'box: ' + p.box.innerText);
+        expect(chatApi.queueLength() === 0, 'queued');
+        expect(!window.__stopClicked, 'stop clicked');
+        p.endBusy();
+        await new Promise((r) => setTimeout(r, 400));
+        expect(turns(p).length === 0 && results.length === 0, 'submitted after the answer');
+      });
+
+      await check('paste only: the start already at the end of the input is left out', async () => {
+        const p = build({ real: true, draft: 'Tell me about your last project.' });
+        const ack = await chatApi.deliver(sel, 'about your last project and the team size', { submit: false });
+        expect(ack.status === 'sent' && !ack.alreadyInInput, JSON.stringify(ack));
+        expect(p.box.innerText.trim() === 'Tell me about your last project. and the team size', 'box: ' + JSON.stringify(p.box.innerText));
+      });
+
+      await check('paste only: all of it already in the input → nothing added, alreadyInInput', async () => {
+        const p = build({ real: true, draft: 'what is a delegate in C sharp' });
+        const ack = await chatApi.deliver(sel, 'What is a delegate in C sharp?', { submit: false });
+        expect(ack.status === 'sent' && ack.alreadyInInput === true, JSON.stringify(ack));
+        expect(p.box.innerText.trim() === 'what is a delegate in C sharp', 'box: ' + JSON.stringify(p.box.innerText));
+      });
+
+      const ws = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => 'w' + (a + i)).join(' ');
+
+      await check('mergeText: newer words appended, older words (more taps) put in front, nothing twice', async () => {
+        const m = chatApi.mergeText;
+        const eq = (got, want, what) => expect(got === want, `${what}: ${JSON.stringify(got)}`);
+        eq(m('', 'a b c'), 'a b c', 'empty input');
+        eq(m(ws(1, 5), ws(2, 7)), ws(1, 7), 'newer words');
+        eq(m(ws(26, 40), ws(11, 40)), ws(11, 40), 'tap 1 then 2 more taps: older words in front');
+        eq(m(ws(26, 40), ws(1, 42)), ws(1, 42), 'older and newer');
+        eq(m('My note. ' + ws(5, 7), ws(1, 7)), 'My note. ' + ws(1, 7), 'own draft stays in front');
+        eq(m(ws(1, 60), ws(46, 60)), null, 'all already there (inside a long paste)');
+        eq(m(ws(26, 40), ws(26, 40)), null, 'same words again');
+        eq(m('my own note', 'totally different text'), 'my own note totally different text', 'no overlap');
+        eq(m('I said please', 'please do it'), 'I said please please do it', 'one shared word is chance');
+      });
+
+      await check('paste only: 1 tap, then 3 taps → the older words go in front, nothing twice', async () => {
+        const p = build({ real: true });
+        const a1 = await chatApi.deliver(sel, ws(31, 45), { submit: false });
+        const a2 = await chatApi.deliver(sel, ws(1, 45), { submit: false });
+        expect(a1.status === 'sent' && a2.status === 'sent' && !a2.alreadyInInput, JSON.stringify([a1, a2]));
+        expect(p.box.innerText.trim() === ws(1, 45), 'box: ' + JSON.stringify(p.box.innerText));
+        const a3 = await chatApi.deliver(sel, ws(31, 45), { submit: false });
+        expect(a3.alreadyInInput === true, JSON.stringify(a3));
+      });
+
+      await check('paste twice: both texts in the box, one after the other', async () => {
+        const p = build({ real: true });
+        await chatApi.deliver(sel, 'first words', { submit: false });
+        const ack = await chatApi.deliver(sel, 'second words', { submit: false });
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(/^first words second words$/.test(p.box.innerText.trim()), 'box: ' + JSON.stringify(p.box.innerText));
+        expect(turns(p).length === 0, 'submitted!');
+      });
+
+      // ---- Tap key held: merged with the input, then sent ----
+      await check('held tap: merged with what the input holds (nothing twice), then sent', async () => {
+        const p = build({ real: true });
+        await chatApi.deliver(sel, ws(11, 25), { submit: false });
+        const ack = await chatApi.deliver(sel, ws(1, 25), { submit: true, merge: true });
+        expect(ack.status === 'sent' && ack.submitted !== false, JSON.stringify(ack));
+        expect(turns(p).length === 1 && turns(p)[0] === ws(1, 25), 'turns: ' + JSON.stringify(turns(p)));
+      });
+
+      await check('held tap, all already in the input: just sent', async () => {
+        const p = build({ real: true });
+        await chatApi.deliver(sel, ws(1, 15), { submit: false });
+        const ack = await chatApi.deliver(sel, ws(1, 15), { submit: true, merge: true });
+        expect(ack.status === 'sent', JSON.stringify(ack));
+        expect(turns(p).length === 1 && turns(p)[0] === ws(1, 15), 'turns: ' + JSON.stringify(turns(p)));
+      });
+
+      await check('held tap while answering: pasted at once, sent when the answer ends', async () => {
+        window.__stopClicked = false;
+        const p = build({ real: true, busy: true });
+        const results = [];
+        const ack = await chatApi.deliverOrQueue(sel, ws(1, 15), 'id-h', { submit: true, merge: true, settleMs: 50, onResult: (ids, a) => results.push([ids.join(','), a.status]) });
+        expect(ack.status === 'queued', JSON.stringify(ack));
+        expect(p.box.innerText.trim() === ws(1, 15), 'box: ' + JSON.stringify(p.box.innerText));
+        expect(turns(p).length === 0, 'sent while answering');
+        p.endBusy();
+        expect(await waitFor(() => results.length === 1), 'no result');
+        expect(results[0][0] === 'id-h' && results[0][1] === 'sent', JSON.stringify(results));
+        expect(turns(p).length === 1 && turns(p)[0] === ws(1, 15), 'turns: ' + JSON.stringify(turns(p)));
+        expect(!window.__stopClicked, 'stop clicked');
       });
 
       await check('Test: inserts without submitting and reports selectors', async () => {
@@ -338,7 +443,7 @@
         const p = buildGpt({ draft: 'My own draft' });
         const ack = await chatApi.deliver(gpt, 'caption text');
         expect(ack.status === 'sent', JSON.stringify(ack));
-        expect(/^My own draft\s+caption text$/.test(gptTurns(p)[0]), 'turn: ' + JSON.stringify(gptTurns(p)[0]));
+        expect(/^My own draft caption text$/.test(gptTurns(p)[0]), 'turn: ' + JSON.stringify(gptTurns(p)[0]));
       });
 
       await check('ChatGPT: answering (Persian UI, Stop button) → busy, stop never clicked, nothing inserted', async () => {
@@ -363,7 +468,7 @@
         p.endBusy();
         expect(await waitFor(() => results.length === 1), 'no result');
         expect(results[0][0] === 'g-1,g-2' && results[0][1] === 'sent', JSON.stringify(results));
-        expect(gptTurns(p).length === 1 && /^first part\s+second part$/.test(gptTurns(p)[0]), 'turns: ' + JSON.stringify(gptTurns(p)));
+        expect(gptTurns(p).length === 1 && /^first part second part$/.test(gptTurns(p)[0]), 'turns: ' + JSON.stringify(gptTurns(p)));
         expect(!window.__gptStopClicked, 'stop clicked');
       });
 
@@ -469,7 +574,7 @@
         const p = buildClaude({ draft: 'My own draft' });
         const ack = await chatApi.deliver(cl, 'caption text');
         expect(ack.status === 'sent', JSON.stringify(ack));
-        expect(/^My own draft\s+caption text$/.test(clTurns(p)[0]), 'turn: ' + JSON.stringify(clTurns(p)[0]));
+        expect(/^My own draft caption text$/.test(clTurns(p)[0]), 'turn: ' + JSON.stringify(clTurns(p)[0]));
       });
 
       await check('Claude: answering (Persian UI, chat-input-stop) → busy, stop never clicked', async () => {
@@ -494,7 +599,7 @@
         p.endBusy();
         expect(await waitFor(() => results.length === 1), 'no result');
         expect(results[0][0] === 'c-1,c-2' && results[0][1] === 'sent', JSON.stringify(results));
-        expect(clTurns(p).length === 1 && /^first part\s+second part$/.test(clTurns(p)[0]), 'turns: ' + JSON.stringify(clTurns(p)));
+        expect(clTurns(p).length === 1 && /^first part second part$/.test(clTurns(p)[0]), 'turns: ' + JSON.stringify(clTurns(p)));
         expect(!window.__claudeStopClicked && !window.__claudeMicClicked, 'stop or mic clicked');
       });
 

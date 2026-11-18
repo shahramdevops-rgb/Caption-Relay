@@ -24,7 +24,7 @@ namespace CaptionRelay.UI
         private readonly Timer _timer = new Timer { Interval = 500 };
         private bool _connected;
 
-        public SetupForm(string extensionDir, Func<bool> isConnected)
+        public SetupForm(string extensionDir, Func<bool> isConnected, string sendKey = "F8")
         {
             _extensionDir = extensionDir;
             _isConnected = isConnected;
@@ -111,7 +111,7 @@ namespace CaptionRelay.UI
             layout.Controls.Add(_status);
             _done = Indent(L(
                 "Open Gemini, ChatGPT or Claude in the browser. To choose which one gets your text, click the " +
-                "CaptionRelay icon in the browser toolbar (puzzle piece → CaptionRelay). Then press Ctrl+Shift to send.",
+                $"CaptionRelay icon in the browser toolbar (puzzle piece → CaptionRelay). Then press {sendKey} to paste what was said.",
                 color: Color.FromArgb(60, 60, 60)));
             _done.Visible = false;
             layout.Controls.Add(_done);

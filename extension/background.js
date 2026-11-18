@@ -3,7 +3,8 @@ import { RelayConnection } from './lib/connection.js';
 import { getProvider, DEFAULT_PROVIDER } from './providers/registry.js';
 import { log, warn, setForwarder } from './lib/log.js';
 
-const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER };
+// autoSubmit false (default): the text is only pasted into the chat's input; the user presses Enter themselves.
+const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER, autoSubmit: false };
 const NATIVE_HOST = 'com.captionrelay.host';
 const NATIVE_RETRY_MS = 20000;
 let lastNativeFetch = 0;
@@ -43,12 +44,19 @@ async function getSettings() {
   return settings;
 }
 
-async function deliver(text, id) {
+/**
+ * Delivers one send from the app. Paste only (default): merged with what the chat's input holds, not sent.
+ * "Press Enter for me": pasted and sent. A held tap key (opts.submit) sends this one in either mode, merged first.
+ */
+async function deliver(text, id, opts = {}) {
   const settings = await getSettings();
   const provider = getProvider(settings.provider);
-  log(`send ${String(id).slice(0, 8)}: ${text.length} chars -> ${provider.id}`);
-  const onResult = (status, detail) => connection.sendResult(id, status, detail, provider.id);
-  const ack = await provider.deliver(text, { id, onResult });
+  const forced = opts.submit === true;
+  const submit = forced || settings.autoSubmit === true;
+  const merge = forced || !submit;
+  log(`send ${String(id).slice(0, 8)}: ${text.length} chars -> ${provider.id}${forced ? ' (paste + send: key held)' : submit ? '' : ' (paste only)'}`);
+  const onResult = (status, detail, submitted) => connection.sendResult(id, status, detail, provider.id, submitted);
+  const ack = await provider.deliver(text, { id, onResult, submit, merge });
   log(`ack ${String(id).slice(0, 8)}: ${ack.status}${ack.detail ? ' (' + ack.detail + ')' : ''}`);
   return { provider: provider.id, ...ack };
 }
@@ -97,7 +105,10 @@ const connection = new RelayConnection({
     if (state === 'on') {
       reportEnvironment();
       // Remember the app's hotkeys for the popup (shown even while disconnected).
-      if (connection.app?.sendKey) chrome.storage.local.set({ appKeys: { sendKey: connection.app.sendKey, skipKey: connection.app.skipKey } });
+      if (connection.app?.sendKey) {
+        const { sendKey, skipKey, tapKey, tapWords } = connection.app;
+        chrome.storage.local.set({ appKeys: { sendKey, skipKey, tapKey, tapWords } });
+      }
     }
   },
   onAuthError: () => fetchFromApp('token refused'),
@@ -152,6 +163,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // async response
   } else if (message?.type === 'turn-off') {
     sendResponse(turnOff());
+  } else if (message?.type === 'set-tap-preview') {
+    sendResponse({ ok: connection.sendSetTapPreview(message.value === true) });
   } else if (message?.type === 'reconnect') {
     connection.restart();
     sendResponse({ ok: true });

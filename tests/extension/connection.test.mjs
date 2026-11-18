@@ -89,6 +89,28 @@ test('send is delivered by the provider and acked with the same id', async () =>
   assert.deepEqual(r.socket().sent.at(-1), { type: 'ack', id: 'abc', status: 'queued', provider: 'gemini' });
 });
 
+test('send with submit: true (tap key held) reaches the provider as opts.submit', async () => {
+  const seen = [];
+  const r = rig({ onSend: async (text, id, opts) => { seen.push(opts); return { status: 'sent', provider: 'gemini' }; } });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'h1', text: 'paste and send', submit: true });
+  r.socket().receive({ type: 'send', id: 'h2', text: 'paste only' });
+  await tick();
+  assert.deepEqual(seen, [{ submit: true }, { submit: false }]);
+});
+
+test('a paste-only ack carries submitted: false', async () => {
+  const r = rig({ onSend: async () => ({ status: 'sent', submitted: false, provider: 'gemini' }) });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'p1', text: 'paste me' });
+  await tick();
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'ack', id: 'p1', status: 'sent', submitted: false, provider: 'gemini' });
+});
+
 test('a provider exception becomes an error ack', async () => {
   const r = rig({ onSend: async () => { throw new Error('input not found'); } });
   r.conn.start();
@@ -225,8 +247,12 @@ test('status() carries the app hotkeys from welcome (null when an older app does
   await tick();
   r.socket().open();
   assert.equal(r.conn.status().app, null);
-  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1, sendKey: 'Ctrl+Shift', skipKey: 'F9' });
-  assert.deepEqual(r.conn.status().app, { name: 'CaptionRelay', version: '0.1.0', sendKey: 'Ctrl+Shift', skipKey: 'F9' });
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1, sendKey: 'Num -', skipKey: 'F9', tapKey: 'Num +', tapWords: 15, tapPreview: true });
+  assert.deepEqual(r.conn.status().app, { name: 'CaptionRelay', version: '0.1.0', sendKey: 'Num -', skipKey: 'F9', tapKey: 'Num +', tapWords: 15, tapPreview: true });
+  r.socket().receive({ type: 'settings', tapPreview: false });
+  assert.equal(r.conn.status().app.tapPreview, false);
+  assert.equal(r.conn.sendSetTapPreview(true), true);
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'setTapPreview', value: true });
   r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.0.9', protocol: 1 });
   assert.equal(r.conn.status().app.sendKey, null);
 });

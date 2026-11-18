@@ -187,6 +187,34 @@ namespace CaptionRelay.Config
                 changed = true;
             }
 
+            if (c.TapWords < 1 || c.TapWords > 1000)
+            {
+                warnings.Add($"tapWords {c.TapWords} is out of range 1-1000; reset to {AppConfig.DefaultTapWords}.");
+                c.TapWords = AppConfig.DefaultTapWords;
+                changed = true;
+            }
+
+            if (c.TapPasteDelayMs < 200 || c.TapPasteDelayMs > 10000)
+            {
+                warnings.Add($"tapPasteDelayMs {c.TapPasteDelayMs} is out of range 200-10000; reset to {AppConfig.DefaultTapPasteDelayMs}.");
+                c.TapPasteDelayMs = AppConfig.DefaultTapPasteDelayMs;
+                changed = true;
+            }
+
+            if (c.TapHoldSendMs < 150 || c.TapHoldSendMs > 3000)
+            {
+                warnings.Add($"tapHoldSendMs {c.TapHoldSendMs} is out of range 150-3000; reset to {AppConfig.DefaultTapHoldSendMs}.");
+                c.TapHoldSendMs = AppConfig.DefaultTapHoldSendMs;
+                changed = true;
+            }
+
+            if (double.IsNaN(c.TapPreviewOpacity) || c.TapPreviewOpacity < 0.2 || c.TapPreviewOpacity > 1)
+            {
+                warnings.Add($"tapPreviewOpacity {c.TapPreviewOpacity} is out of range 0.2-1; reset to {AppConfig.DefaultTapPreviewOpacity}.");
+                c.TapPreviewOpacity = AppConfig.DefaultTapPreviewOpacity;
+                changed = true;
+            }
+
             if (c.SessionRetentionDays < 0 || c.SessionRetentionDays > 3650)
             {
                 warnings.Add($"sessionRetentionDays {c.SessionRetentionDays} is out of range 0-3650; reset to {AppConfig.DefaultSessionRetentionDays}.");

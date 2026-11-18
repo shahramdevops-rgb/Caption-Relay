@@ -8,8 +8,9 @@ using static CaptionRelay.UI.NativeMethods;
 namespace CaptionRelay.UI
 {
     /// <summary>
-    /// Tiny always-on-top status pill that never takes focus: "● Captions  ● Gemini  · 142 words pending", plus 1.5 s
-    /// flash messages. Left click toggles a panel (above the pill) with the end of the pending text; drag moves it;
+    /// Tiny always-on-top status pill that never takes focus: "● Captions  ● Gemini", plus 1.5 s flash messages ("Pasted
+    /// ✓", "Tap ×2 · 30 words" …); it is only as wide as its text. Left click toggles a panel (above the pill) with the
+    /// end of the text heard since the last skip; drag moves it;
     /// right click raises <see cref="MenuRequested"/>. Custom painted; the window title carries the same text for UI
     /// Automation. Call its methods on the UI thread.
     /// </summary>
@@ -30,7 +31,8 @@ namespace CaptionRelay.UI
         private readonly Timer _flashTimer = new Timer();
         private readonly int _pillHeight;
         private readonly int _panelHeight;
-        private readonly int _width;
+        private readonly int _panelWidth;
+        private int _width;
 
         private bool _captionsOk;
         private bool _extensionOk;
@@ -59,7 +61,8 @@ namespace CaptionRelay.UI
 
             _pillHeight = LogicalToDeviceUnits(26);
             _panelHeight = LogicalToDeviceUnits(112);
-            _width = LogicalToDeviceUnits(300);
+            _panelWidth = LogicalToDeviceUnits(300);
+            _width = LogicalToDeviceUnits(170);
 
             Rectangle primary = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 720);
             Rectangle[] areas = Array.ConvertAll(Screen.AllScreens, s => s.WorkingArea);
@@ -172,7 +175,7 @@ namespace CaptionRelay.UI
 
             if (_expanded)
             {
-                var title = _words == 0 ? "Nothing pending" : $"Pending ({IndicatorText.Words(_words)}):";
+                var title = _words == 0 ? "Nothing heard since the last skip" : $"Heard since the last skip ({IndicatorText.Words(_words)}):";
                 var titleRect = new Rectangle(pad, LogicalToDeviceUnits(6), Width - 2 * pad, LogicalToDeviceUnits(16));
                 TextRenderer.DrawText(g, title, _panelFont, titleRect, Dim, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
                 var textRect = new Rectangle(pad, titleRect.Bottom + LogicalToDeviceUnits(2), Width - 2 * pad, _panelHeight - titleRect.Bottom - LogicalToDeviceUnits(8));
@@ -196,12 +199,7 @@ namespace CaptionRelay.UI
             else if (_queued > 0)
             {
                 // Stays until the queued text is submitted (or fails).
-                x = DrawText(g, "· queued", x, y, Amber, Width - x - pad);
-                DrawText(g, " · " + IndicatorText.Words(_words), x, y, Dim, Width - x - pad);
-            }
-            else
-            {
-                DrawText(g, "· " + IndicatorText.Words(_words), x, y, Dim, Width - x - pad);
+                DrawText(g, "· queued", x, y, Amber, Width - x - pad);
             }
         }
 
@@ -236,10 +234,34 @@ namespace CaptionRelay.UI
 
         private void Refresh2()
         {
-            Text = IndicatorText.StatusLine(_captionsOk, _extensionOk, _provider, _words, _flashText, _queued);
+            Text = IndicatorText.StatusLine(_captionsOk, _extensionOk, _provider, _flashText, _queued);
             AccessibleDescription = _expanded ? "expanded" : "collapsed";
+            int width = Math.Max(PillContentWidth(), _expanded ? _panelWidth : 0);
+            if (width != _width)
+            {
+                _width = width;
+                ApplyBounds();
+            }
+
             Invalidate();
         }
+
+        /// <summary>Width the pill needs for its dots, labels and the flash / queued text (same layout as OnPaint).</summary>
+        private int PillContentWidth()
+        {
+            int pad = LogicalToDeviceUnits(10);
+            int dot = LogicalToDeviceUnits(8) + LogicalToDeviceUnits(5);
+            int w = pad + dot + Measure("Captions") + LogicalToDeviceUnits(10) + dot + Measure(_provider) + pad;
+            string? tail = _flashText ?? (_queued > 0 ? "· queued" : null);
+            if (tail != null)
+            {
+                w += LogicalToDeviceUnits(8) + Measure(tail);
+            }
+
+            return Math.Min(w, LogicalToDeviceUnits(420));
+        }
+
+        private int Measure(string text) => TextRenderer.MeasureText(text, _font, Size.Empty, TextFormatFlags.NoPadding).Width;
 
         private void ApplyBounds()
         {

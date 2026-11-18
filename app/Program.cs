@@ -134,10 +134,17 @@ namespace CaptionRelay
 
             Hotkey sendKey = ParseHotkey(config.SendKey, AppConfig.DefaultSendKey, "sendKey");
             Hotkey skipKey = ParseHotkey(config.SkipKey, AppConfig.DefaultSkipKey, "skipKey");
+            Hotkey tapKey = ParseHotkey(config.TapKey, AppConfig.DefaultTapKey, "tapKey");
             if (sendKey.Kind != HotkeyKind.None && sendKey.Equals(skipKey))
             {
                 Log.Warn($"sendKey and skipKey are both {sendKey}; skip is disabled.");
                 skipKey = Hotkey.None;
+            }
+
+            if (tapKey.Kind != HotkeyKind.None && (tapKey.Equals(sendKey) || tapKey.Equals(skipKey)))
+            {
+                Log.Warn($"tapKey {tapKey} is already the send or skip key; tap is disabled.");
+                tapKey = Hotkey.None;
             }
 
             using var relay = new RelayServer(new RelayOptions
@@ -147,6 +154,9 @@ namespace CaptionRelay
                 AllowedExtensionIds = config.AllowedExtensionIds,
                 SendKey = sendKey.ToString(),
                 SkipKey = skipKey.ToString(),
+                TapKey = tapKey.ToString(),
+                TapWords = config.TapWords,
+                TapPreview = config.TapPreview,
             });
             relay.ConnectionChanged += connected => Log.Info(connected ? $"Extension connected: {relay.ActiveClient}." : "No extension connected.");
             relay.StartAsync().GetAwaiter().GetResult();
@@ -157,26 +167,36 @@ namespace CaptionRelay
                 config.MinSendChars,
                 config.Prefix,
                 providerName: () => IndicatorText.ProviderLabel(relay.ActiveProvider),
-                dispatch: action => invoker.BeginInvoke(action));
+                dispatch: action => invoker.BeginInvoke(action))
+            {
+                TapWords = config.TapWords,
+                TapPasteDelayMs = config.TapPasteDelayMs,
+                TapHoldSendMs = config.TapHoldSendMs,
+            };
             controller.Feedback += (kind, message) => Log.Info($"Feedback ({kind}): {message}");
 
-            using var hook = new KeyboardHook(sendKey, skipKey, action => invoker.BeginInvoke(action));
+            using var hook = new KeyboardHook(sendKey, skipKey, tapKey, action => invoker.BeginInvoke(action));
             hook.SendPressed += controller.OnSendPressed;
             hook.SkipPressed += controller.OnSkipPressed;
+            hook.TapPressed += controller.OnTapPressed;
+            hook.TapReleased += controller.OnTapReleased;
             try
             {
                 hook.Start();
-                Log.Info($"Hotkeys: send = {sendKey}, skip = {skipKey}.");
+                Log.Info($"Hotkeys: send = {sendKey}, skip = {skipKey}, tap = {tapKey} ({config.TapWords} words per tap).");
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
                 Log.Error("Keyboard hook failed; hotkeys are disabled", ex);
             }
 
-            using var tray = new TrayContext(config, capture, relay, controller, reader, liveCaptionsWindow, sendKey.ToString(), skipKey.ToString());
+            using var tray = new TrayContext(config, capture, relay, controller, reader, liveCaptionsWindow, sendKey.ToString(), skipKey.ToString(), tapKey.ToString());
 
             // The extension popup's switch was turned off: shut everything down, as the Exit menu does.
             relay.QuitRequested += () => invoker.BeginInvoke(new Action(tray.ExitThread));
+
+            // The extension popup's "Show tap preview" switch.
+            relay.TapPreviewRequested += on => invoker.BeginInvoke(new Action(() => tray.SetTapPreview(on)));
 
             Application.Run(tray);
 

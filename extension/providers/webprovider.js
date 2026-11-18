@@ -104,9 +104,13 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
     }
   }
 
-  /** sent / queued (the chat is answering; the page submits it later and reports a result) / error. */
-  async function deliverToTab(tabId, text, msgId) {
-    const ack = await sendToTab(tabId, { type: 'captionrelay-deliver', text, id: msgId }).catch((e) => {
+  /**
+   * sent / queued (the chat is answering; the page submits it later and reports a result) / error.
+   * submit false: only paste into the input (ack "sent" with submitted: false). merge: merge with what the input
+   * holds instead of appending (paste only, and a held tap key).
+   */
+  async function deliverToTab(tabId, text, msgId, submit = true, merge = false) {
+    const ack = await sendToTab(tabId, { type: 'captionrelay-deliver', text, id: msgId, submit, merge }).catch((e) => {
       if (e instanceof NoResponse) return { status: 'error', detail: `the ${name} tab stopped answering` };
       throw e;
     });
@@ -128,10 +132,10 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
         return;
       }
       for (let i = 0; i < 20; i++) {
-        const ack = await deliverToTab(tabId, text, ctx.id).catch((e) => ({ status: 'error', detail: String(e?.message ?? e) }));
+        const ack = await deliverToTab(tabId, text, ctx.id, ctx.submit !== false, ctx.merge === true).catch((e) => ({ status: 'error', detail: String(e?.message ?? e) }));
         if (ack.status === 'sent') {
           log(`delivered to the ${what} ${name} tab`);
-          ctx.onResult?.('sent', ack.detail);
+          ctx.onResult?.('sent', ack.detail, ack.submitted);
           return;
         }
         if (ack.status === 'queued') return; // the page reports the result itself
@@ -164,8 +168,9 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
 
     /**
      * @param {string} text
-     * @param {{id: string, onResult: (status: string, detail?: string) => void}} ctx
-     *   onResult reports the final result when the ack was "queued" and delivery happens here (new or reloaded tab).
+     * @param {{id: string, submit?: boolean, merge?: boolean, onResult: (status: string, detail?: string, submitted?: boolean) => void}} ctx
+     *   submit false = only paste into the input. onResult reports the final result when the ack was "queued" and
+     *   delivery happens here (new or reloaded tab).
      */
     async deliver(text, ctx = {}) {
       const tab = await findTab();
@@ -177,7 +182,7 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
         if (!(await isAlive(tab.id))) return reloadAndDeliver(tab, text, ctx, `did not answer a ping within ${PING_TIMEOUT_MS} ms (frozen?)`);
         const pingMs = Date.now() - t0;
         if (pingMs > 200) log(`tab ${tab.id} answered the ping after ${pingMs} ms`);
-        return deliverToTab(tab.id, text, ctx.id);
+        return deliverToTab(tab.id, text, ctx.id, ctx.submit !== false, ctx.merge === true);
       }
 
       // No tab: open one in the background and deliver once it has loaded. That takes longer than the app waits

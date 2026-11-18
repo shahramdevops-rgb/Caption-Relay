@@ -45,6 +45,13 @@ namespace CaptionRelay.Input
                 return true;
             }
 
+            Keys alias = Alias(text);
+            if (alias != Keys.None)
+            {
+                hotkey = new Hotkey(HotkeyKind.Key, alias);
+                return true;
+            }
+
             // Enum.TryParse also accepts numbers and combined flags ("F8, Control"); allow plain key names only.
             if (char.IsDigit(text[0]) || text.Contains(','))
             {
@@ -74,8 +81,51 @@ namespace CaptionRelay.Input
         public override string ToString() => Kind switch
         {
             HotkeyKind.CtrlShift => "Ctrl+Shift",
-            HotkeyKind.Key => Key.ToString(),
+            HotkeyKind.Key => Label(Key),
             _ => "None",
+        };
+
+        /// <summary>
+        /// Numpad keys by friendly names: "NumPlus" / "Num+" (numpad +, not the +/= key of the main keyboard),
+        /// "NumMinus" / "Num-", "NumStar", "NumSlash". Windows reports them as Add, Subtract, Multiply, Divide.
+        /// </summary>
+        private static Keys Alias(string text)
+        {
+            switch (text.Replace(" ", "").ToLowerInvariant())
+            {
+                case "numplus":
+                case "num+":
+                case "numpadplus":
+                case "numpadadd":
+                    return Keys.Add;
+                case "numminus":
+                case "num-":
+                case "numpadminus":
+                case "numpadsubtract":
+                    return Keys.Subtract;
+                case "numstar":
+                case "num*":
+                case "numpadmultiply":
+                    return Keys.Multiply;
+                case "numslash":
+                case "num/":
+                case "numpaddivide":
+                    return Keys.Divide;
+                default:
+                    return Keys.None;
+            }
+        }
+
+        /// <summary>How a key is shown to the user: "Num +" for the numpad's +, "F8", "Pause" …</summary>
+        private static string Label(Keys key) => key switch
+        {
+            Keys.Add => "Num +",
+            Keys.Subtract => "Num -",
+            Keys.Multiply => "Num *",
+            Keys.Divide => "Num /",
+            Keys.Decimal => "Num .",
+            >= Keys.NumPad0 and <= Keys.NumPad9 => "Num " + (char)('0' + (key - Keys.NumPad0)),
+            _ => key.ToString(),
         };
 
         private static bool IsModifierKey(Keys key) =>

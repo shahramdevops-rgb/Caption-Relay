@@ -65,6 +65,42 @@ namespace CaptionRelay.Captions
         public string PendingTail { get; }
     }
 
+    /// <summary>What a tap selection would paste now (for the tap preview).</summary>
+    public sealed class TapPreview
+    {
+        internal TapPreview(bool available, string context, string selected, int selectedWords, int pendingWords, bool matchesLiveCaptions = false, int aboveWindow = 0)
+        {
+            CaptionsAvailable = available;
+            Context = context;
+            Selected = selected;
+            SelectedWords = selectedWords;
+            PendingWords = pendingWords;
+            MatchesLiveCaptions = matchesLiveCaptions;
+            AboveWindow = aboveWindow;
+        }
+
+        public bool CaptionsAvailable { get; }
+
+        /// <summary>
+        /// The text before the selection (not pasted; shown dimmed), "" if none: the rest of what the Live Captions
+        /// window shows (<see cref="MatchesLiveCaptions"/>), otherwise the end of the pending text.
+        /// </summary>
+        public string Context { get; }
+
+        /// <summary>Context + selection start where the Live Captions window's visible text starts.</summary>
+        public bool MatchesLiveCaptions { get; }
+
+        /// <summary>Selected words older than the first word visible in the Live Captions window.</summary>
+        public int AboveWindow { get; }
+
+        /// <summary>Exactly what would be pasted.</summary>
+        public string Selected { get; }
+
+        public int SelectedWords { get; }
+
+        public int PendingWords { get; }
+    }
+
     public sealed class CaptureOptions
     {
         public int PollMs { get; set; } = 120;
@@ -82,6 +118,9 @@ namespace CaptionRelay.Captions
         public TimeSpan RestartInterval { get; set; } = TimeSpan.FromSeconds(5);
 
         public int PendingTailChars { get; set; } = 300;
+
+        /// <summary>How much of the pending text before a tap selection the preview shows.</summary>
+        public int PreviewContextChars { get; set; } = 160;
     }
 
     /// <summary>
@@ -206,7 +245,78 @@ namespace CaptionRelay.Captions
             return result;
         }
 
-        /// <summary>The extension accepted the text: its [SENT] marker becomes final.</summary>
+        /// <summary>
+        /// Tap send: takes only the last <paramref name="maxWords"/> words of the pending text. Like <see cref="Take"/>
+        /// it moves sentIndex to the end (the older pending words are marked skipped); <see cref="ConfirmPasted"/> or
+        /// <see cref="Restore"/> put everything back.
+        /// </summary>
+        public TakeResult TakeLast(int maxWords, int minChars)
+        {
+            TakeResult result;
+            lock (_lock)
+            {
+                if (!_started || !_available)
+                {
+                    return new TakeResult(TakeStatus.CaptionsUnavailable);
+                }
+
+                string full = _merger.Full;
+                Selection sel = Select(full, maxWords);
+                if (sel.Text.Length < Math.Max(1, minChars))
+                {
+                    return new TakeResult(TakeStatus.NothingNew);
+                }
+
+                DateTime at = _now();
+                var ticket = new SendTicket(sel.Text, full.Length, _sentIndex, at);
+                _open.Add(ticket);
+                if (sel.Start > _sentIndex && full.Substring(_sentIndex, sel.Start - _sentIndex).Trim().Length > 0)
+                {
+                    _markers.Add(new Marker(sel.Start, "SKIPPED", at, confirmed: false, ticket) { Note = $"(older than the last {maxWords} words)" });
+                }
+
+                _markers.Add(new Marker(full.Length, "SENT", at, confirmed: false, ticket));
+                _sentIndex = full.Length;
+                _forceCommit = full.Length;
+                result = new TakeResult(TakeStatus.Ok, sel.Text, ticket);
+            }
+
+            StatusChanged?.Invoke();
+            return result;
+        }
+
+        /// <summary>
+        /// What <see cref="TakeLast"/> would take right now (nothing is changed). With <paramref name="visibleText"/>
+        /// (what the Live Captions window shows, <see cref="CaptionsReader.ReadVisible"/>) the context is that same
+        /// stretch of text, so the preview shows the words on screen with the selection highlighted among them.
+        /// </summary>
+        public TapPreview PreviewLast(int maxWords, string? visibleText = null)
+        {
+            lock (_lock)
+            {
+                string full = _merger.Full;
+                string pending = Clean(full.Substring(_sentIndex));
+                int pendingWords = TranscriptMerger.Tokenize(pending, 0).Count;
+                Selection sel = Select(full, maxWords);
+                int visibleStart = string.IsNullOrWhiteSpace(visibleText) ? -1 : FindVisibleStart(full, visibleText);
+                if (visibleStart >= 0)
+                {
+                    string shown = visibleStart < sel.Start ? full.Substring(visibleStart, sel.Start - visibleStart).Trim() : "";
+                    int above = visibleStart > sel.Start ? TranscriptMerger.Tokenize(full.Substring(sel.Start, visibleStart - sel.Start), 0).Count : 0;
+                    return new TapPreview(_available && _started, shown, sel.Text, sel.Words, pendingWords, true, above);
+                }
+
+                string context = sel.Start > _sentIndex ? Clean(full.Substring(_sentIndex, sel.Start - _sentIndex)) : "";
+                if (context.Length > _options.PreviewContextChars)
+                {
+                    context = "…" + context.Substring(context.Length - _options.PreviewContextChars).TrimStart();
+                }
+
+                return new TapPreview(_available && _started, context, sel.Text, sel.Words, pendingWords);
+            }
+        }
+
+        /// <summary>The extension accepted the text: its [SENT] marker (and a tap's [SKIPPED] marker) becomes final.</summary>
         public void Confirm(SendTicket ticket, string? note = null)
         {
             lock (_lock)
@@ -217,10 +327,47 @@ namespace CaptionRelay.Captions
                     if (m.Ticket == ticket)
                     {
                         m.Confirmed = true;
+                        if (m.Kind == "SENT")
+                        {
+                            m.Note = note;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The text was only pasted into the chat's input, not submitted: nothing is used up. sentIndex goes back to
+        /// before this paste (unless a skip moved it meanwhile), so the next press pastes the same words again (plus
+        /// anything new); only a skip moves the start. The [SENT] marker stays in the session file with
+        /// <paramref name="note"/>; a tap's [SKIPPED] marker is dropped.
+        /// </summary>
+        public void ConfirmPasted(SendTicket ticket, string? note = null)
+        {
+            lock (_lock)
+            {
+                if (!_open.Remove(ticket))
+                {
+                    return;
+                }
+
+                if (_sentIndex == ticket.Cut)
+                {
+                    _sentIndex = ticket.Previous;
+                }
+
+                _markers.RemoveAll(m => m.Ticket == ticket && m.Kind == "SKIPPED");
+                foreach (Marker m in _markers)
+                {
+                    if (m.Ticket == ticket)
+                    {
+                        m.Confirmed = true;
                         m.Note = note;
                     }
                 }
             }
+
+            StatusChanged?.Invoke();
         }
 
         /// <summary>Delivery failed: sentIndex goes back to before this send so the text is sent again next time.</summary>
@@ -502,8 +649,69 @@ namespace CaptionRelay.Captions
             return words[words.Count - _options.HoldBackWords].Start;
         }
 
+        /// <summary>
+        /// Where the Live Captions window's visible text starts in the transcript (char index), or -1. Its first words
+        /// (up to 8) are looked for near the end of the transcript, latest occurrence first; if the top words were
+        /// rewritten meanwhile, up to 8 of them are skipped for the search and counted back afterwards.
+        /// </summary>
+        internal static int FindVisibleStart(string full, string visibleText)
+        {
+            List<TranscriptMerger.Word> shown = TranscriptMerger.Tokenize(visibleText, 0);
+            List<TranscriptMerger.Word> words = TranscriptMerger.Tokenize(full, Math.Max(0, full.Length - 20000));
+            for (int skip = 0; skip < Math.Min(8, shown.Count); skip++)
+            {
+                int k = Math.Min(8, shown.Count - skip);
+                for (int j = words.Count - k; j >= 0; j--)
+                {
+                    bool same = true;
+                    for (int i = 0; i < k && same; i++)
+                    {
+                        same = words[j + i].Norm == shown[skip + i].Norm;
+                    }
+
+                    if (same)
+                    {
+                        // Skipped (rewritten) top words still occupy the window: step back over as many.
+                        return words[Math.Max(0, j - skip)].Start;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>The last <paramref name="maxWords"/> words after sentIndex. Call under the lock.</summary>
+        private Selection Select(string full, int maxWords)
+        {
+            List<TranscriptMerger.Word> words = TranscriptMerger.Tokenize(full, _sentIndex);
+            int first = Math.Max(0, words.Count - Math.Max(1, maxWords));
+            if (first >= words.Count)
+            {
+                return new Selection(full.Length, "", 0);
+            }
+
+            int start = words[first].Start;
+            return new Selection(start, Clean(full.Substring(start)), words.Count - first);
+        }
+
         /// <summary>Trims and drops punctuation that belongs to the previous sentence (". Then" → "Then").</summary>
         internal static string Clean(string text) => text.Trim().TrimStart(LeadingJunk).TrimStart();
+
+        private readonly struct Selection
+        {
+            public Selection(int start, string text, int words)
+            {
+                Start = start;
+                Text = text;
+                Words = words;
+            }
+
+            public int Start { get; }
+
+            public string Text { get; }
+
+            public int Words { get; }
+        }
 
         private sealed class Marker
         {

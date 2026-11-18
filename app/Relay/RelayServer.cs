@@ -37,11 +37,19 @@ namespace CaptionRelay.Relay
         /// <summary>A connection that sends nothing (not even pong) for this long is closed.</summary>
         public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(65);
 
-        /// <summary>Send hotkey as shown to the user (e.g. "Ctrl+Shift"); sent in welcome for the extension popup.</summary>
-        public string SendKey { get; set; } = "Ctrl+Shift";
+        /// <summary>Send hotkey as shown to the user (e.g. "F8", "Ctrl+Shift"); sent in welcome for the extension popup.</summary>
+        public string SendKey { get; set; } = "Num -";
 
         /// <summary>Skip hotkey as shown to the user (e.g. "F9", "None").</summary>
         public string SkipKey { get; set; } = "F9";
+
+        /// <summary>The tap key and words per tap, for the extension popup's shortcut list.</summary>
+        public string TapKey { get; set; } = "Num +";
+
+        public int TapWords { get; set; } = 15;
+
+        /// <summary>Whether the tap preview is on (welcome; the popup's switch shows and changes it).</summary>
+        public bool TapPreview { get; set; } = true;
     }
 
     /// <summary>
@@ -78,6 +86,37 @@ namespace CaptionRelay.Relay
 
         /// <summary>The extension asked the app to shut down (popup switch turned off). Raised on a network thread.</summary>
         public event Action? QuitRequested;
+
+        /// <summary>The extension popup turned the tap preview on or off. Raised on a network thread.</summary>
+        public event Action<bool>? TapPreviewRequested;
+
+        /// <summary>Tells every connected extension the current settings (after a change in the app).</summary>
+        public void NotifySettings(bool tapPreview)
+        {
+            _options.TapPreview = tapPreview;
+            List<Connection> open;
+            lock (_lock)
+            {
+                open = _connections.ToList();
+            }
+
+            foreach (Connection c in open)
+            {
+                _ = SendQuietlyAsync(c, new { type = "settings", tapPreview });
+            }
+        }
+
+        private static async Task SendQuietlyAsync(Connection c, object message)
+        {
+            try
+            {
+                await c.SendJsonAsync(message, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is WebSocketException || ex is ObjectDisposedException || ex is OperationCanceledException)
+            {
+                // Closing; the next welcome carries the setting.
+            }
+        }
 
         private void RaiseQuitRequested()
         {
@@ -157,7 +196,7 @@ namespace CaptionRelay.Relay
             }
         }
 
-        public async Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default)
+        public async Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default, bool submit = false)
         {
             Connection? target;
             lock (_lock)
@@ -175,7 +214,8 @@ namespace CaptionRelay.Relay
             _pending[id] = pending;
             try
             {
-                await target.SendJsonAsync(new { type = "send", id, text }, cancellationToken).ConfigureAwait(false);
+                object message = submit ? new { type = "send", id, text, submit = true } : new { type = "send", id, text };
+                await target.SendJsonAsync(message, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is WebSocketException || ex is ObjectDisposedException || ex is OperationCanceledException)
             {
@@ -193,7 +233,7 @@ namespace CaptionRelay.Relay
             }
 
             SendOutcome outcome = await pending.Completion.Task.ConfigureAwait(false);
-            return new SendOutcome(outcome.Status, outcome.Detail, outcome.Provider, id);
+            return new SendOutcome(outcome.Status, outcome.Detail, outcome.Provider, id, outcome.Submitted, outcome.AlreadyInInput);
         }
 
         public void Dispose()
@@ -335,7 +375,7 @@ namespace CaptionRelay.Relay
             conn.Client = Str(hello.Value, "client") ?? "extension " + (Str(hello.Value, "version") ?? "?");
             conn.Provider = Str(hello.Value, "provider");
             conn.Protocol = hello.Value.TryGetProperty("protocol", out JsonElement p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 1;
-            await conn.SendJsonAsync(new { type = "welcome", app = AppInfo.Name, version = AppInfo.Version, protocol = ProtocolVersion, sendKey = _options.SendKey, skipKey = _options.SkipKey }, CancellationToken.None).ConfigureAwait(false);
+            await conn.SendJsonAsync(new { type = "welcome", app = AppInfo.Name, version = AppInfo.Version, protocol = ProtocolVersion, sendKey = _options.SendKey, skipKey = _options.SkipKey, tapKey = _options.TapKey, tapWords = _options.TapWords, tapPreview = _options.TapPreview }, CancellationToken.None).ConfigureAwait(false);
             return true;
         }
 
@@ -376,6 +416,22 @@ namespace CaptionRelay.Relay
                         Log.Info($"Quit requested by the extension ({conn.Client}).");
                         RaiseQuitRequested();
                         break;
+                    case "setTapPreview":
+                        if (m.TryGetProperty("value", out JsonElement v) && (v.ValueKind == JsonValueKind.True || v.ValueKind == JsonValueKind.False))
+                        {
+                            bool on = v.ValueKind == JsonValueKind.True;
+                            Log.Info($"Tap preview {(on ? "on" : "off")} requested by the extension ({conn.Client}).");
+                            try
+                            {
+                                TapPreviewRequested?.Invoke(on);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error("TapPreviewRequested handler failed", ex);
+                            }
+                        }
+
+                        break;
                     default:
                         break; // forward compatible: unknown types are ignored
                 }
@@ -388,6 +444,7 @@ namespace CaptionRelay.Relay
             string status = Str(m, "status") ?? "";
             string? detail = Str(m, "detail");
             string? provider = Str(m, "provider");
+            bool submitted = Submitted(m);
             if (!_pending.TryRemove(id, out PendingSend? pending))
             {
                 Log.Warn($"Relay: late or unknown ack from {conn} (status {status}); ignored.");
@@ -396,7 +453,7 @@ namespace CaptionRelay.Relay
 
             SendOutcome outcome = status switch
             {
-                "sent" => new SendOutcome(SendStatus.Sent, detail, provider),
+                "sent" => new SendOutcome(SendStatus.Sent, detail, provider, submitted: submitted, alreadyInInput: AlreadyInInput(m)),
                 "queued" => new SendOutcome(SendStatus.Queued, detail, provider),
                 "error" => new SendOutcome(SendStatus.Error, string.IsNullOrEmpty(detail) ? "unknown error" : detail, provider),
                 _ => new SendOutcome(SendStatus.Error, $"unknown ack status '{status}'", provider),
@@ -410,7 +467,7 @@ namespace CaptionRelay.Relay
             string id = Str(m, "id") ?? "";
             string status = Str(m, "status") ?? "";
             SendOutcome outcome = status == "sent"
-                ? new SendOutcome(SendStatus.Sent, Str(m, "detail"), Str(m, "provider"), id)
+                ? new SendOutcome(SendStatus.Sent, Str(m, "detail"), Str(m, "provider"), id, Submitted(m))
                 : new SendOutcome(SendStatus.Error, Str(m, "detail") ?? $"status '{status}'", Str(m, "provider"), id);
             Log.Info($"Relay: result from {conn} for queued send {(id.Length >= 8 ? id[..8] : id)}: {status}.");
             try
@@ -484,6 +541,14 @@ namespace CaptionRelay.Relay
                 Log.Error("ConnectionChanged handler failed", ex);
             }
         }
+
+        /// <summary>Optional "submitted": false = the text was only pasted into the chat's input. Anything else = true.</summary>
+        private static bool Submitted(JsonElement e) =>
+            !(e.ValueKind == JsonValueKind.Object && e.TryGetProperty("submitted", out JsonElement v) && v.ValueKind == JsonValueKind.False);
+
+        /// <summary>Optional "alreadyInInput": true = paste only, nothing added (the input already ended with the text).</summary>
+        private static bool AlreadyInInput(JsonElement e) =>
+            e.ValueKind == JsonValueKind.Object && e.TryGetProperty("alreadyInInput", out JsonElement v) && v.ValueKind == JsonValueKind.True;
 
         private static string? Str(JsonElement e, string name) =>
             e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

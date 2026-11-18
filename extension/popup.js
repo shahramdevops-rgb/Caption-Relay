@@ -1,9 +1,9 @@
 // Toolbar popup: the switch starts / closes the CaptionRelay app (and with it Live Captions), plus status, which
-// chat receives the text, and the app's hotkeys. The switch shows ON exactly while the app is running and connected,
+// chat receives the text, whether it is only pasted or also submitted, and the app's hotkeys. The switch shows ON exactly while the app is running and connected,
 // so starting or closing the app any other way (desktop, taskbar, tray menu) is reflected here too.
 import { listProviders, getProvider, DEFAULT_PROVIDER } from './providers/registry.js';
 
-const DEFAULT_KEYS = { sendKey: 'Ctrl+Shift', skipKey: 'F9' };
+const DEFAULT_KEYS = { sendKey: 'Num -', skipKey: 'F9', tapKey: 'Num +', tapWords: 15 };
 const START_TIMEOUT_MS = 20000;
 const STOP_TIMEOUT_MS = 8000;
 const $ = (id) => document.getElementById(id);
@@ -11,8 +11,9 @@ const $ = (id) => document.getElementById(id);
 // A switch flip in progress: { want: 'on' | 'off', until: timestamp }.
 let pending = null;
 let message = null; // error from the last flip, shown until the next one
+let tapPreviewPendingUntil = 0; // after a click, keep showing the new value until the app confirms it
 
-/** "Ctrl+Shift" → <kbd>Ctrl</kbd> + <kbd>Shift</kbd>; "None" → "not set". */
+/** "Ctrl+Shift" → <kbd>Ctrl</kbd> + <kbd>Shift</kbd>; "Num +" → one <kbd>; "None" → "not set". */
 function renderCombo(el, combo) {
   el.replaceChildren();
   if (!combo || combo === 'None') {
@@ -22,7 +23,8 @@ function renderCombo(el, combo) {
     el.append(s);
     return;
   }
-  combo.split('+').forEach((part, i) => {
+  const parts = /^\w+(\+\w+)+$/.test(combo) ? combo.split('+') : [combo]; // "Num +" is one key
+  parts.forEach((part, i) => {
     if (i > 0) el.append(' + ');
     const k = document.createElement('kbd');
     k.textContent = part;
@@ -30,9 +32,31 @@ function renderCombo(el, combo) {
   });
 }
 
+/** What the send key does: paste only (default) or paste and submit. */
+function showSendWhat(providerId, autoSubmit) {
+  const name = getProvider(providerId).name;
+  const el = $('sendWhat');
+  el.replaceChildren();
+  const b = document.createElement('b');
+  b.textContent = autoSubmit ? 'Send' : 'Paste';
+  el.append(b, autoSubmit
+    ? ` everything said since the last skip to ${name}`
+    : ` everything said since the last skip into the ${name} input (not sent)`);
+}
+
 function showKeys(keys, guessed) {
   renderCombo($('sendKey'), keys.sendKey);
   renderCombo($('skipKey'), keys.skipKey);
+  // Older app versions do not report a tap key: hide the row then.
+  const tapKey = keys.tapKey === undefined ? DEFAULT_KEYS.tapKey : keys.tapKey;
+  $('tapRow').hidden = tapKey === null;
+  renderCombo($('tapKey'), tapKey);
+  const n = keys.tapWords ?? DEFAULT_KEYS.tapWords;
+  const b = document.createElement('b');
+  b.textContent = 'Tap';
+  const hold = document.createElement('b');
+  hold.textContent = 'Hold';
+  $('tapWhat').replaceChildren(b, `: the last ${n} words; tap again for ${n} more. `, hold, ': paste and send');
   $('keysNote').textContent = guessed
     ? 'Default keys shown; the app reports yours once it runs. Press and release in any window.'
     : 'Press and release in any window; your focus stays where it is. Change them in the app\'s config.json.';
@@ -42,9 +66,10 @@ async function load() {
   const select = $('provider');
   for (const p of listProviders()) select.add(new Option(p.name, p.id));
 
-  const s = await chrome.storage.local.get({ provider: DEFAULT_PROVIDER, appKeys: null });
+  const s = await chrome.storage.local.get({ provider: DEFAULT_PROVIDER, appKeys: null, autoSubmit: false });
   select.value = s.provider;
-  $('providerName').textContent = getProvider(s.provider).name;
+  $('autoSubmit').checked = s.autoSubmit === true;
+  showSendWhat(s.provider, s.autoSubmit === true);
   showKeys(s.appKeys ?? DEFAULT_KEYS, !s.appKeys);
 }
 
@@ -94,6 +119,12 @@ async function refresh() {
   }
 
   if (s?.app?.sendKey) showKeys(s.app, false);
+
+  // Tap preview switch: the app's setting, so only while the app is running.
+  const tp = $('tapPreview');
+  tp.disabled = !on || typeof s?.app?.tapPreview !== 'boolean';
+  if (!tp.disabled && Date.now() > tapPreviewPendingUntil) tp.checked = s.app.tapPreview;
+  $('tapPreviewRow').classList.toggle('disabled', tp.disabled);
 }
 
 $('enabled').addEventListener('change', async (e) => {
@@ -114,9 +145,23 @@ $('enabled').addEventListener('change', async (e) => {
   refresh();
 });
 
+$('tapPreview').addEventListener('change', async (e) => {
+  tapPreviewPendingUntil = Date.now() + 1500;
+  try {
+    await chrome.runtime.sendMessage({ type: 'set-tap-preview', value: e.target.checked });
+  } catch {
+    // the next refresh shows the real state
+  }
+});
+
 $('provider').addEventListener('change', async (e) => {
   await chrome.storage.local.set({ provider: e.target.value });
-  $('providerName').textContent = getProvider(e.target.value).name;
+  showSendWhat(e.target.value, $('autoSubmit').checked);
+});
+
+$('autoSubmit').addEventListener('change', async (e) => {
+  await chrome.storage.local.set({ autoSubmit: e.target.checked });
+  showSendWhat($('provider').value, e.target.checked);
 });
 
 $('settings').addEventListener('click', () => {

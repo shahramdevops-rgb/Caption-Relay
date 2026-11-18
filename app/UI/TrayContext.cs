@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CaptionRelay.Captions;
 using CaptionRelay.Config;
@@ -28,6 +29,8 @@ namespace CaptionRelay.UI
         private readonly ToolStripMenuItem _showItem;
         private readonly ToolStripMenuItem _hideLcItem;
         private readonly ToolStripMenuItem _startupItem;
+        private readonly ToolStripMenuItem _tapPreviewItem;
+        private readonly TapPreviewForm _tapPreview;
         private readonly StartupRegistration _startup = new StartupRegistration();
         private readonly IndicatorForm _indicator;
         private readonly MainForm _main;
@@ -35,15 +38,22 @@ namespace CaptionRelay.UI
         private readonly Icon _iconOk = AppIcons.Create(true);
         private readonly Icon _iconBad = AppIcons.Create(false);
         private readonly SendController _controller;
+        private readonly string _sendKeyLabel;
         private string? _lastProvider;
         private IntPtr _previousForeground;
         private bool? _lastAllOk;
         private SetupForm? _setup;
         private bool _exiting;
 
-        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow, string sendKeyLabel, string skipKeyLabel)
+        // What the Live Captions window shows, read in the background while tapping (UI Automation, cross-process).
+        private string? _visibleText;
+        private bool _visibleReading;
+        private long _visibleReadAt = long.MinValue / 2;
+
+        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow, string sendKeyLabel, string skipKeyLabel, string tapKeyLabel)
         {
             _config = config;
+            _sendKeyLabel = sendKeyLabel;
             _capture = capture;
             _relay = relay;
             _reader = reader;
@@ -54,6 +64,7 @@ namespace CaptionRelay.UI
             _menu = new ContextMenuStrip();
             _menu.Items.Add(_showItem);
             _menu.Items.Add(_hideLcItem);
+            _menu.Items.Add(_tapPreviewItem = new ToolStripMenuItem("Show tap preview", null, (_, _) => SetTapPreview(!_config.TapPreview)) { Checked = config.TapPreview });
             _menu.Items.Add(_startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows()) { Checked = config.StartWithWindows });
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Set up browser extension…", null, (_, _) => ShowSetup()));
@@ -64,7 +75,8 @@ namespace CaptionRelay.UI
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
 
-            _main = new MainForm(sendKeyLabel, skipKeyLabel);
+            _main = new MainForm(sendKeyLabel, skipKeyLabel, tapKeyLabel, controller.TapWords, config.TapPreview);
+            _main.TapPreviewToggled += SetTapPreview;
             _main.SetupRequested += ShowSetup;
             _main.SessionsRequested += OpenSessions;
             _main.ExitRequested += ExitThread;
@@ -108,8 +120,11 @@ namespace CaptionRelay.UI
 
             UpdateShowItem();
 
+            _tapPreview = new TapPreviewForm(config.TapPreviewOpacity);
+
             _controller = controller;
             controller.Feedback += OnFeedback;
+            controller.TapChanged += UpdateTapPreview;
             _timer.Tick += (_, _) => UpdateStatus();
             _timer.Start();
             UpdateStatus();
@@ -147,7 +162,7 @@ namespace CaptionRelay.UI
             }
 
             Log.Info("Showing the browser extension setup window.");
-            _setup = new SetupForm(AppPaths.ExtensionDir, () => _relay.IsConnected);
+            _setup = new SetupForm(AppPaths.ExtensionDir, () => _relay.IsConnected, _sendKeyLabel);
             _setup.Connected += MarkExtensionSetUp;
             _setup.FormClosed += (_, _) => _setup = null;
             _setup.Show();
@@ -175,6 +190,7 @@ namespace CaptionRelay.UI
             _exiting = true;
             Log.Info("Exit requested.");
             _timer.Stop();
+            _tapPreview.Hide();
             _setup?.Close();
             _main.CloseForExit();
             base.ExitThreadCore();
@@ -190,6 +206,7 @@ namespace CaptionRelay.UI
                 _tray.Dispose();
                 _menu.Dispose();
                 _indicator.Dispose();
+                _tapPreview.Dispose();
                 _main.Dispose();
                 _iconOk.Dispose();
                 _iconBad.Dispose();
@@ -257,11 +274,16 @@ namespace CaptionRelay.UI
                 string provider = Provider();
                 _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail, _controller.QueuedCount);
                 _main.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, _controller.QueuedCount);
-                _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, s.PendingWords, _relay.StartError);
+                _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, _relay.StartError);
 
                 if (connected && !_config.ExtensionSetUp)
                 {
                     MarkExtensionSetUp();
+                }
+
+                if (_controller.Taps > 0)
+                {
+                    UpdateTapPreview(); // new speech while tapping changes the selection
                 }
 
                 bool allOk = s.CaptionsAvailable && connected;
@@ -281,6 +303,97 @@ namespace CaptionRelay.UI
         {
             _indicator.Flash(kind, message);
             UpdateStatus();
+        }
+
+        /// <summary>Shows the tap selection above the indicator while tapping (if enabled); hides it otherwise.</summary>
+        private void UpdateTapPreview()
+        {
+            try
+            {
+                int taps = _controller.Taps;
+                if (taps == 0 || !_config.TapPreview)
+                {
+                    _visibleText = null; // the next tapping reads the window afresh
+                    if (_tapPreview.Visible)
+                    {
+                        _tapPreview.Hide();
+                    }
+
+                    return;
+                }
+
+                RefreshVisibleText();
+                int limit = _controller.TapWordLimit;
+                Point anchor = _indicator.Visible ? new Point(_indicator.Left, _indicator.Top) : _indicator.PillLocation;
+                _tapPreview.ShowPreview(_capture.PreviewLast(limit, _visibleText), taps, limit, anchor, _controller.SendOnRelease);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Tap preview failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Reads the text visible in the Live Captions window on a background thread (at most every 250 ms, one read
+        /// at a time) and redraws the preview with it.
+        /// </summary>
+        private void RefreshVisibleText()
+        {
+            long now = Environment.TickCount64;
+            if (_visibleReading || now - _visibleReadAt < 250)
+            {
+                return;
+            }
+
+            _visibleReading = true;
+            _visibleReadAt = now;
+            Task.Run(() => _reader.ReadVisible()).ContinueWith(t =>
+            {
+                string? text = t.Status == TaskStatus.RanToCompletion ? t.Result : null;
+                try
+                {
+                    _indicator.BeginInvoke(new Action(() =>
+                    {
+                        _visibleReading = false;
+                        if (_controller.Taps > 0)
+                        {
+                            _visibleText = text;
+                            UpdateTapPreview();
+                        }
+                    }));
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
+                    // Closing.
+                }
+            }, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Turns the tap preview on or off, from any of its switches (tray menu, taskbar window, extension popup), and
+        /// keeps them all in step. Call on the UI thread.
+        /// </summary>
+        public void SetTapPreview(bool on)
+        {
+            if (_exiting)
+            {
+                return;
+            }
+
+            bool changed = _config.TapPreview != on;
+            _config.TapPreview = on;
+            _tapPreviewItem.Checked = on;
+            _main.SetTapPreview(on);
+            _relay.NotifySettings(on);
+            UpdateTapPreview();
+            if (!changed)
+            {
+                return;
+            }
+
+            SaveConfig();
+            Log.Info($"Tap preview: {on}.");
+            _indicator.Flash(FeedbackKind.Info, on ? "Tap preview on" : "Tap preview off");
         }
 
         private void OnIndicatorMoved(Point p)

@@ -20,8 +20,13 @@ namespace CaptionRelay.Tests
             Assert.True(File.Exists(path));
             Assert.Equal(43, result.Config.Token.Length);
             Assert.Equal(AppConfig.DefaultPort, result.Config.Port);
-            Assert.Equal("CtrlShift", result.Config.SendKey);
+            Assert.Equal("NumMinus", result.Config.SendKey);
             Assert.Equal("F9", result.Config.SkipKey);
+            Assert.Equal("NumPlus", result.Config.TapKey);
+            Assert.Equal(400, result.Config.TapHoldSendMs);
+            Assert.Equal(15, result.Config.TapWords);
+            Assert.Equal(400, result.Config.TapPasteDelayMs);
+            Assert.True(result.Config.TapPreview);
             Assert.Equal("", result.Config.Prefix);
             Assert.Equal(3, result.Config.MinSendChars);
             Assert.Equal(120, result.Config.PollMs);
@@ -54,7 +59,7 @@ namespace CaptionRelay.Tests
             ConfigStore.Load(path);
 
             string json = File.ReadAllText(path);
-            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "prefix", "minSendChars", "pollMs", "startLiveCaptions", "closeLiveCaptionsOnExit", "indicatorX", "indicatorY", "indicatorVisible", "sessionRetentionDays", "hideLiveCaptions", "allowedExtensionIds", "startWithWindows", "extensionSetUp" })
+            foreach (string key in new[] { "port", "token", "sendKey", "skipKey", "tapKey", "tapWords", "tapPasteDelayMs", "tapHoldSendMs", "tapPreview", "tapPreviewOpacity", "prefix", "minSendChars", "pollMs", "startLiveCaptions", "closeLiveCaptionsOnExit", "indicatorX", "indicatorY", "indicatorVisible", "sessionRetentionDays", "hideLiveCaptions", "allowedExtensionIds", "startWithWindows", "extensionSetUp" })
             {
                 Assert.Contains("\"" + key + "\"", json);
             }

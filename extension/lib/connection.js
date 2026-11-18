@@ -36,7 +36,7 @@ export class RelayConnection {
     this.timer = null;
     this.lastError = null;
     this.connectedAt = null;
-    this.app = null; // from the last welcome: { name, version, sendKey, skipKey }
+    this.app = null; // from the last welcome: { name, version, sendKey, skipKey, tapKey, tapWords }
     this.stopped = false;
     this.generation = 0; // ignores events of sockets replaced by restart()
   }
@@ -151,7 +151,15 @@ export class RelayConnection {
         this.attempt = 0;
         this.lastError = null;
         this.connectedAt = Date.now();
-        this.app = { name: m.app, version: m.version, sendKey: m.sendKey ?? null, skipKey: m.skipKey ?? null };
+        this.app = {
+          name: m.app,
+          version: m.version,
+          sendKey: m.sendKey ?? null,
+          skipKey: m.skipKey ?? null,
+          tapKey: m.tapKey ?? null,
+          tapWords: m.tapWords ?? null,
+          tapPreview: typeof m.tapPreview === 'boolean' ? m.tapPreview : null,
+        };
         this.setState('on');
         this.logger.log(`connected to ${m.app} ${m.version} (protocol ${m.protocol})`);
         break;
@@ -168,6 +176,10 @@ export class RelayConnection {
       case 'send':
         await this.handleSend(m);
         break;
+      case 'settings':
+        // The app's settings changed (e.g. the tap preview turned on in its taskbar window).
+        if (this.app && typeof m.tapPreview === 'boolean') this.app.tapPreview = m.tapPreview;
+        break;
       default:
         break; // forward compatible
     }
@@ -176,16 +188,24 @@ export class RelayConnection {
   async handleSend(m) {
     let ack;
     try {
-      ack = await this.onSend(m.text ?? '', m.id);
+      // submit: true = the tap key was held: paste AND send this one, whatever the paste-only setting says.
+      ack = await this.onSend(m.text ?? '', m.id, { submit: m.submit === true });
     } catch (e) {
       ack = { status: 'error', detail: String(e?.message ?? e) };
     }
-    this.sendJson({ type: 'ack', id: m.id, status: ack.status, detail: ack.detail, provider: ack.provider });
+    this.sendJson({ type: 'ack', id: m.id, status: ack.status, detail: ack.detail, provider: ack.provider, submitted: ack.submitted, alreadyInInput: ack.alreadyInInput });
   }
 
-  /** Final result of a send that was acked "queued". */
-  sendResult(id, status, detail, provider) {
-    return this.sendJson({ type: 'result', id, status: status === 'sent' ? 'sent' : 'error', detail, provider });
+  /** Final result of a send that was acked "queued" (submitted false = only pasted into the input). */
+  sendResult(id, status, detail, provider, submitted) {
+    return this.sendJson({ type: 'result', id, status: status === 'sent' ? 'sent' : 'error', detail, provider, submitted });
+  }
+
+  /** Popup switch: turn the app's tap preview on or off. Returns false when not connected. */
+  sendSetTapPreview(on) {
+    const ok = this.sendJson({ type: 'setTapPreview', value: !!on });
+    if (ok && this.app) this.app.tapPreview = !!on;
+    return ok;
   }
 
   /** Asks the app to exit (popup switch off). Returns false when not connected. */

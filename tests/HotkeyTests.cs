@@ -15,11 +15,12 @@ namespace CaptionRelay.Tests
             private readonly HashSet<int> _down = new HashSet<int>();
             private readonly HotkeyStateMachine _machine;
 
-            public Keyboard(string send = "CtrlShift", string skip = "F9")
+            public Keyboard(string send = "CtrlShift", string skip = "F9", string tap = "F7")
             {
                 Hotkey.TryParse(send, out Hotkey s);
                 Hotkey.TryParse(skip, out Hotkey k);
-                _machine = new HotkeyStateMachine(s, k);
+                Hotkey.TryParse(tap, out Hotkey t);
+                _machine = new HotkeyStateMachine(s, k, t);
             }
 
             public List<HotkeyAction> Actions { get; } = new List<HotkeyAction>();
@@ -97,6 +98,56 @@ namespace CaptionRelay.Tests
         private const int T = (int)Keys.T;
         private const int F9 = (int)Keys.F9;
         private const int F24 = (int)Keys.F24;
+
+        private const int F7 = (int)Keys.F7;
+        private const int F8 = (int)Keys.F8;
+
+        [Fact]
+        public void TapKey_EachPressIsOneTap_AutoRepeatAndModifiersIgnored()
+        {
+            Assert.Equal("Tap,Tap,Tap", new Keyboard().Tap(F7).Tap(F7).Tap(F7).Result);
+            Assert.Equal("Tap", new Keyboard().Down(F7).Down(F7).Down(F7).Up(F7).Result); // held: auto-repeat
+            Assert.Equal("none", new Keyboard().Down(LCtrl).Tap(F7).Up(LCtrl).Result);
+            Assert.Equal("Send,Tap,Skip", new Keyboard().Down(LCtrl).Down(LShift).Up(LShift).Up(LCtrl).Tap(F7).Tap(F9).Result);
+        }
+
+        [Fact]
+        public void DefaultKeys_F8Send_F7Tap_F9Skip()
+        {
+            Assert.Equal("Send,Tap,Skip", new Keyboard(send: "F8", skip: "F9", tap: "F7").Tap(F8).Tap(F7).Tap(F9).Result);
+            Assert.Equal("none", new Keyboard(send: "F8", skip: "F9", tap: "F7").Down(LCtrl).Down(LShift).Up(LShift).Up(LCtrl).Result);
+        }
+
+        [Fact]
+        public void NumpadPlusAndMinus_NotTheMainKeyboardOnes()
+        {
+            const int NumPlus = 0x6B, NumMinus = 0x6D, MainPlus = 0xBB, MainMinus = 0xBD;
+            var kb = new Keyboard(send: "NumMinus", skip: "F9", tap: "NumPlus");
+            Assert.Equal("Tap,Send", kb.Tap(NumPlus).Tap(NumMinus).Result);
+            Assert.Equal("Tap,Send", kb.Tap(MainPlus).Tap(MainMinus).Result); // nothing new
+        }
+
+        [Theory]
+        [InlineData("NumPlus", Keys.Add, "Num +")]
+        [InlineData("Num+", Keys.Add, "Num +")]
+        [InlineData("numpad add", Keys.Add, "Num +")]
+        [InlineData("NumMinus", Keys.Subtract, "Num -")]
+        [InlineData("Num-", Keys.Subtract, "Num -")]
+        [InlineData("Add", Keys.Add, "Num +")]
+        [InlineData("F8", Keys.F8, "F8")]
+        public void NumpadNames_ParseAndShow(string text, Keys key, string label)
+        {
+            Assert.True(Hotkey.TryParse(text, out Hotkey h));
+            Assert.Equal(HotkeyKind.Key, h.Kind);
+            Assert.Equal(key, h.Key);
+            Assert.Equal(label, h.ToString());
+        }
+
+        [Fact]
+        public void TapKeyNone_NeverTaps()
+        {
+            Assert.Equal("none", new Keyboard(tap: "None").Tap(F7).Result);
+        }
 
         [Fact]
         public void CtrlThenShift_ReleasedInAnyOrder_SendsOnce()

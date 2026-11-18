@@ -7,13 +7,16 @@ namespace CaptionRelay.Input
         None,
         Send,
         Skip,
+
+        /// <summary>The tap key (select the latest words, one block per tap).</summary>
+        Tap,
     }
 
     /// <summary>
     /// Decides, per key event, whether a hotkey fired (logic from LiveCaptionsGemini's KeyboardHook, tested with 12
     /// simulated scenarios there). Ctrl+Shift fires on release when both were held and no other key was pressed in
     /// between, once per press; another key while a modifier is held (Ctrl+Shift+T) cancels until both are released.
-    /// A single-key hotkey (F9) fires on key down with no modifier held, ignoring auto-repeat.
+    /// A single-key hotkey (F7, F8, F9) fires on key down with no modifier held, ignoring auto-repeat.
     ///
     /// <paramref name="isPressed"/> in <see cref="OnKey"/> must report the state BEFORE the current event (that is what
     /// GetAsyncKeyState returns inside a low-level hook); modifier state is derived from it plus the event itself, so
@@ -33,15 +36,17 @@ namespace CaptionRelay.Input
 
         private readonly Hotkey _send;
         private readonly Hotkey _skip;
+        private readonly Hotkey _tap;
 
         private bool _armed;   // both were down together with nothing else
         private bool _spoiled; // another key was pressed while Ctrl or Shift was held
         private bool _fired;   // already fired for this press
 
-        public HotkeyStateMachine(Hotkey send, Hotkey skip)
+        public HotkeyStateMachine(Hotkey send, Hotkey skip, Hotkey tap = default)
         {
             _send = send;
             _skip = skip;
+            _tap = tap;
         }
 
         public HotkeyAction OnKey(int vk, bool isDown, Func<int, bool> isPressed)
@@ -84,6 +89,10 @@ namespace CaptionRelay.Input
                         {
                             action = HotkeyAction.Skip;
                         }
+                        else if (_tap.Kind == HotkeyKind.CtrlShift)
+                        {
+                            action = HotkeyAction.Tap;
+                        }
                     }
 
                     if (!ctrl && !shift)
@@ -125,6 +134,11 @@ namespace CaptionRelay.Input
             if (_skip.Kind == HotkeyKind.Key && key == _skip.Key)
             {
                 return HotkeyAction.Skip;
+            }
+
+            if (_tap.Kind == HotkeyKind.Key && key == _tap.Key)
+            {
+                return HotkeyAction.Tap;
             }
 
             return HotkeyAction.None;

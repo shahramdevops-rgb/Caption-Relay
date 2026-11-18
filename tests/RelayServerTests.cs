@@ -175,11 +175,17 @@ namespace CaptionRelay.Tests
             {
                 o.SendKey = "Ctrl+Shift";
                 o.SkipKey = "F8";
+                o.TapKey = "F7";
+                o.TapWords = 40;
+                o.TapPreview = false;
             });
             using Client c = await Client.Connect(Port);
             JsonElement? welcome = await c.Receive();
             Assert.Equal("Ctrl+Shift", welcome!.Value.GetProperty("sendKey").GetString());
             Assert.Equal("F8", welcome.Value.GetProperty("skipKey").GetString());
+            Assert.Equal("F7", welcome.Value.GetProperty("tapKey").GetString());
+            Assert.Equal(40, welcome.Value.GetProperty("tapWords").GetInt32());
+            Assert.False(welcome.Value.GetProperty("tapPreview").GetBoolean());
         }
 
         [Fact]
@@ -254,6 +260,73 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public async Task Ack_SubmittedFalse_IsPastedOnly_MissingMeansSubmitted()
+        {
+            using RelayServer server = await StartServer();
+            using Client c = await Client.Connect(Port);
+            await c.ReceiveType("welcome");
+            await WaitFor(() => server.IsConnected);
+
+            Task<SendOutcome> sending = server.SendAsync("paste me");
+            JsonElement send = (await c.ReceiveType("send"))!.Value;
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", submitted = false, provider = "gemini" });
+            SendOutcome pasted = await sending;
+            Assert.Equal(SendStatus.Sent, pasted.Status);
+            Assert.False(pasted.Submitted);
+            Assert.False(pasted.AlreadyInInput);
+
+            sending = server.SendAsync("paste me");
+            send = (await c.ReceiveType("send"))!.Value;
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", submitted = false, alreadyInInput = true });
+            Assert.True((await sending).AlreadyInInput);
+
+            sending = server.SendAsync("send me");
+            send = (await c.ReceiveType("send"))!.Value;
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", provider = "gemini" });
+            Assert.True((await sending).Submitted);
+        }
+
+        [Fact]
+        public async Task SendWithSubmit_CarriesTheFlag_OtherwiseNoField()
+        {
+            using RelayServer server = await StartServer();
+            using Client c = await Client.Connect(Port);
+            await c.ReceiveType("welcome");
+            await WaitFor(() => server.IsConnected);
+
+            Task<SendOutcome> sending = server.SendAsync("paste and send", default, submit: true);
+            JsonElement send = (await c.ReceiveType("send"))!.Value;
+            Assert.True(send.GetProperty("submit").GetBoolean());
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent" });
+            await sending;
+
+            sending = server.SendAsync("paste only");
+            send = (await c.ReceiveType("send"))!.Value;
+            Assert.False(send.TryGetProperty("submit", out _));
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent" });
+            await sending;
+        }
+
+        [Fact]
+        public async Task TapPreviewSwitch_FromExtension_AndSettingsPushedBack()
+        {
+            using RelayServer server = await StartServer();
+            var requests = new System.Collections.Concurrent.ConcurrentQueue<bool>();
+            server.TapPreviewRequested += on => requests.Enqueue(on);
+            using Client c = await Client.Connect(Port);
+            await c.ReceiveType("welcome");
+            await WaitFor(() => server.IsConnected);
+
+            await c.Send(new { type = "setTapPreview", value = false });
+            await WaitFor(() => requests.Count == 1);
+            Assert.True(requests.TryDequeue(out bool on) && !on);
+
+            server.NotifySettings(true);
+            JsonElement settings = (await c.ReceiveType("settings"))!.Value;
+            Assert.True(settings.GetProperty("tapPreview").GetBoolean());
+        }
+
+        [Fact]
         public async Task QueuedAck_CarriesId_LaterResultRaisesDeliveryResult()
         {
             using RelayServer server = await StartServer();
@@ -276,6 +349,12 @@ namespace CaptionRelay.Tests
             Assert.True(results.TryDequeue(out var r));
             Assert.Equal(id, r.Id);
             Assert.Equal(SendStatus.Sent, r.Outcome.Status);
+            Assert.True(r.Outcome.Submitted);
+
+            await c.Send(new { type = "result", id = "pasted", status = "sent", submitted = false });
+            await WaitFor(() => results.Count == 1);
+            Assert.True(results.TryDequeue(out r));
+            Assert.False(r.Outcome.Submitted);
 
             await c.Send(new { type = "result", id = "other", status = "error", detail = "still answering after 3 min" });
             await WaitFor(() => results.Count == 1);

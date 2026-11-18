@@ -106,6 +106,44 @@ namespace CaptionRelay.Captions
             }
         }
 
+        /// <summary>
+        /// The caption text visible in the Live Captions window right now: its visible lines (UI Automation
+        /// TextPattern.GetVisibleRanges), normalized. Depends on the window's size and scroll position. Null when Live
+        /// Captions or its text is not available. Takes a few milliseconds (cross-process): not for every poll.
+        /// </summary>
+        public string? ReadVisible()
+        {
+            lock (_lock)
+            {
+                if (_element == null && !TryFind())
+                {
+                    return null;
+                }
+
+                try
+                {
+                    if (!_element!.TryGetCurrentPattern(TextPattern.Pattern, out object pattern))
+                    {
+                        return null;
+                    }
+
+                    var sb = new StringBuilder();
+                    foreach (System.Windows.Automation.Text.TextPatternRange range in ((TextPattern)pattern).GetVisibleRanges())
+                    {
+                        sb.Append(range.GetText(-1)).Append(' ');
+                    }
+
+                    return Normalize(sb.ToString());
+                }
+                catch (Exception ex) when (ex is ElementNotAvailableException || ex is COMException || ex is InvalidOperationException)
+                {
+                    _element = null;
+                    _windowSeen = false;
+                    return null;
+                }
+            }
+        }
+
         /// <summary>Drops the cached element so the next read finds Live Captions again ("Reconnect").</summary>
         public void Reset()
         {

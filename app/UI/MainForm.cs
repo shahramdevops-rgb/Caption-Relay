@@ -21,10 +21,12 @@ namespace CaptionRelay.UI
         private readonly Label _extensionDot;
         private readonly Label _extensionText;
         private readonly Label _pendingText;
+        private readonly CheckBox _tapPreview;
+        private bool _settingTapPreview;
         private readonly Icon? _icon;
         private bool _closingForExit;
 
-        public MainForm(string sendKey, string skipKey)
+        public MainForm(string sendKey, string skipKey, string tapKey, int tapWords, bool tapPreview)
         {
             Text = "CaptionRelay";
             Font = new Font("Segoe UI", 10f);
@@ -56,8 +58,25 @@ namespace CaptionRelay.UI
             layout.Controls.Add(_pendingText);
 
             layout.Controls.Add(L("Shortcuts (work in any window)", bold: true, top: 12));
-            layout.Controls.Add(KeyRow(sendKey, "Send everything said since the last send"));
-            layout.Controls.Add(KeyRow(skipKey, "Skip: forget what was said so far"));
+            layout.Controls.Add(KeyRow(tapKey, $"Tap: the last {tapWords} words, tap again for {tapWords} more. Hold: paste and send"));
+            layout.Controls.Add(KeyRow(sendKey, "Paste everything heard since the last skip"));
+            layout.Controls.Add(KeyRow(skipKey, "Skip: start fresh from here"));
+
+            _tapPreview = new CheckBox
+            {
+                Text = "Show the tap preview while tapping (see-through, above the indicator)",
+                Checked = tapPreview,
+                AutoSize = true,
+                Margin = new Padding(0, 10, 0, 0),
+            };
+            _tapPreview.CheckedChanged += (_, _) =>
+            {
+                if (!_settingTapPreview)
+                {
+                    TapPreviewToggled?.Invoke(_tapPreview.Checked);
+                }
+            };
+            layout.Controls.Add(_tapPreview);
 
             var buttons = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 14, 0, 0) };
             buttons.Controls.Add(MakeButton("Set up browser extension…", () => SetupRequested?.Invoke()));
@@ -78,6 +97,9 @@ namespace CaptionRelay.UI
 
         public event Action? SetupRequested;
 
+        /// <summary>The user turned the tap preview checkbox on or off.</summary>
+        public event Action<bool>? TapPreviewToggled;
+
         public event Action? SessionsRequested;
 
         /// <summary>The user closed the window or clicked Exit: the whole app should exit.</summary>
@@ -90,6 +112,14 @@ namespace CaptionRelay.UI
             Rectangle area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 720);
             Location = new Point(area.Left + Math.Max(0, (area.Width - Width) / 2), area.Top + Math.Max(0, (area.Height - Height) / 3));
             ShowWindow(Handle, SW_SHOWMINNOACTIVE);
+        }
+
+        /// <summary>Shows the tap preview setting (changed elsewhere) without raising <see cref="TapPreviewToggled"/>.</summary>
+        public void SetTapPreview(bool on)
+        {
+            _settingTapPreview = true;
+            _tapPreview.Checked = on;
+            _settingTapPreview = false;
         }
 
         /// <summary>Closes the window as part of exiting (no second exit request).</summary>
@@ -106,7 +136,7 @@ namespace CaptionRelay.UI
         {
             Set(_captionsDot, _captionsText, captions, captions ? "Live Captions: running" : "Live Captions: not available");
             Set(_extensionDot, _extensionText, connected, connected ? $"Browser extension: connected ({provider})" : "Browser extension: not connected");
-            string pending = pendingWords == 1 ? "1 word waiting to be sent" : $"{pendingWords} words waiting to be sent";
+            string pending = pendingWords == 1 ? "1 word heard since the last skip" : $"{pendingWords} words heard since the last skip";
             _pendingText.Text = queued > 0 ? $"{pending} · {queued} queued" : pending;
             string title = $"CaptionRelay · {(captions && connected ? "ready" : "not ready")}";
             if (Text != title)
@@ -194,7 +224,7 @@ namespace CaptionRelay.UI
             bool none = string.IsNullOrEmpty(combo) || combo == "None";
             var keys = new Label
             {
-                Text = none ? "not set" : combo.Replace("+", " + "),
+                Text = none ? "not set" : combo.Contains(' ') ? combo : combo.Replace("+", " + "),
                 AutoSize = false,
                 Size = new Size(110, 26),
                 TextAlign = ContentAlignment.MiddleCenter,
