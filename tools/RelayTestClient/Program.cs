@@ -16,6 +16,7 @@ namespace CaptionRelay.Tools
     /// Usage: RelayTestClient --config path\config.json [--script sent,noack,queued,error] [--ackDelayMs 50]
     ///                        [--origin chrome-extension://test] [--badToken] [--pasteOnly] [--seconds 60] [--exitAfterSends N]
     /// --pasteOnly answers "sent" acks like the extension's default paste mode (submitted: false).
+    /// --focus also asks the app to bring the chat window forward (focus: true), like "Jump to the chat after pasting".
     /// Each incoming "send" is answered with the next script entry (the last one repeats):
     ///   sent | queued | error | noack
     /// </summary>
@@ -40,6 +41,7 @@ namespace CaptionRelay.Tools
             string token = Array.IndexOf(args, "--badToken") >= 0 ? "wrong-token" : config.Token;
             bool quit = Array.IndexOf(args, "--quit") >= 0;
             bool pasteOnly = Array.IndexOf(args, "--pasteOnly") >= 0;
+            bool focus = Array.IndexOf(args, "--focus") >= 0;
 
             using var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("Origin", origin);
@@ -113,7 +115,8 @@ namespace CaptionRelay.Tools
                                 await Task.Delay(ackDelay);
                                 bool forced = m.TryGetProperty("submit", out JsonElement f) && f.ValueKind == JsonValueKind.True;
                                 bool? submitted = pasteOnly && action == "sent" && !forced ? false : null;
-                                await SendJson(ws, new { type = "ack", id, status = action, detail = action == "error" ? "simulated failure" : null, provider = "test-client", submitted });
+                                bool? focusChat = focus && submitted == false ? true : null;
+                                await SendJson(ws, new { type = "ack", id, status = action, detail = action == "error" ? "simulated failure" : null, provider = "test-client", submitted, focus = focusChat });
                             }
 
                             if (exitAfter > 0 && sends >= exitAfter)

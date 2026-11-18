@@ -296,6 +296,26 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public async Task Pasted_WithFocus_AsksToBringTheChatForward_SentDoesNot()
+        {
+            var rig = new Rig();
+            var requests = new List<System.Drawing.Rectangle?>();
+            rig.Controller.ChatFocusRequested += b => requests.Add(b);
+            rig.Screen("tell me about yourself");
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini", submitted: false, focusChat: true, chatBounds: new System.Drawing.Rectangle(0, 0, 1280, 1400));
+            await rig.Send();
+            Assert.Equal(new System.Drawing.Rectangle?[] { new System.Drawing.Rectangle(0, 0, 1280, 1400) }, requests);
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini", submitted: false); // focus turned off
+            await rig.Send();
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini"); // submitted
+            rig.Screen("tell me about yourself please");
+            await rig.Send();
+            Assert.Single(requests);
+        }
+
+        [Fact]
         public async Task Queued_ThenResultPastedOnly_ShownAsPasted()
         {
             var rig = new Rig();

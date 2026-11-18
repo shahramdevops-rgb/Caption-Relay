@@ -203,5 +203,17 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       the old context when the window's text is not found. Checked 2026-11-19: probe saw 4 visible lines / 32 words,
       later 10 lines / 73 words in a 540×365 window; screenshots of 1 and 3 taps showed the preview with the window's
       exact text and the last 15 / 41 words highlighted.
+- [x] **Phase 23 — Jump to the chat after pasting**: after a paste (or "already in the input") the extension makes
+      the target tab active, focuses its window (restoring it if minimized) and puts the caret at the end of the
+      input; the ack carries `focus` with the window's bounds. Windows may refuse a background browser the
+      foreground, so 200 ms later the app brings that window forward itself (matched by bounds in DIPs, else the
+      topmost Chrome/Edge window; AttachThreadInput + SetForegroundWindow) unless it is already in front. Popup
+      checkbox "Jump to the chat after pasting" (`focusAfterPaste`, default on; not used with Press Enter for me).
+      Checked 2026-11-19: fake-page test (input focused, caret at the end); with build\CaptionRelay.exe and
+      RelayTestClient --focus, numpad − in a foreground test window → Chrome came to the front ("brought to the
+      front"). Not yet checked with the real extension (needs the extension reloaded).
+      Also after every paste the input is scrolled to its end like Ctrl+End (the box and scrolling elements around it,
+      up to the input container; again 60 ms later because the editors re-render), so the last words are in view.
+      Fake-page test with a 40 px box in a 60 px wrapper: at the end with the fix, "box at 0 of 283" without it.
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).

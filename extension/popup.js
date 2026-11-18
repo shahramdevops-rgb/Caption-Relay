@@ -66,7 +66,9 @@ async function load() {
   const select = $('provider');
   for (const p of listProviders()) select.add(new Option(p.name, p.id));
 
-  const s = await chrome.storage.local.get({ provider: DEFAULT_PROVIDER, appKeys: null, autoSubmit: false });
+  const s = await chrome.storage.local.get({ provider: DEFAULT_PROVIDER, appKeys: null, autoSubmit: false, focusAfterPaste: true });
+  $('focusAfterPaste').checked = s.focusAfterPaste !== false;
+  $('focusRow').classList.toggle('disabled', s.autoSubmit === true);
   select.value = s.provider;
   $('autoSubmit').checked = s.autoSubmit === true;
   showSendWhat(s.provider, s.autoSubmit === true);
@@ -162,6 +164,11 @@ $('provider').addEventListener('change', async (e) => {
 $('autoSubmit').addEventListener('change', async (e) => {
   await chrome.storage.local.set({ autoSubmit: e.target.checked });
   showSendWhat($('provider').value, e.target.checked);
+  $('focusRow').classList.toggle('disabled', e.target.checked); // sent text needs no Enter
+});
+
+$('focusAfterPaste').addEventListener('change', async (e) => {
+  await chrome.storage.local.set({ focusAfterPaste: e.target.checked });
 });
 
 $('settings').addEventListener('click', () => {

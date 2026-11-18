@@ -233,7 +233,7 @@ namespace CaptionRelay.Relay
             }
 
             SendOutcome outcome = await pending.Completion.Task.ConfigureAwait(false);
-            return new SendOutcome(outcome.Status, outcome.Detail, outcome.Provider, id, outcome.Submitted, outcome.AlreadyInInput);
+            return new SendOutcome(outcome.Status, outcome.Detail, outcome.Provider, id, outcome.Submitted, outcome.AlreadyInInput, outcome.FocusChat, outcome.ChatBounds);
         }
 
         public void Dispose()
@@ -453,7 +453,7 @@ namespace CaptionRelay.Relay
 
             SendOutcome outcome = status switch
             {
-                "sent" => new SendOutcome(SendStatus.Sent, detail, provider, submitted: submitted, alreadyInInput: AlreadyInInput(m)),
+                "sent" => new SendOutcome(SendStatus.Sent, detail, provider, submitted: submitted, alreadyInInput: AlreadyInInput(m), focusChat: Focus(m, out System.Drawing.Rectangle? bounds), chatBounds: bounds),
                 "queued" => new SendOutcome(SendStatus.Queued, detail, provider),
                 "error" => new SendOutcome(SendStatus.Error, string.IsNullOrEmpty(detail) ? "unknown error" : detail, provider),
                 _ => new SendOutcome(SendStatus.Error, $"unknown ack status '{status}'", provider),
@@ -545,6 +545,38 @@ namespace CaptionRelay.Relay
         /// <summary>Optional "submitted": false = the text was only pasted into the chat's input. Anything else = true.</summary>
         private static bool Submitted(JsonElement e) =>
             !(e.ValueKind == JsonValueKind.Object && e.TryGetProperty("submitted", out JsonElement v) && v.ValueKind == JsonValueKind.False);
+
+        /// <summary>
+        /// Optional "focus": the extension focused the chat after a paste; an object {left, top, width, height} gives
+        /// the browser window's bounds (screen DIPs), true means bounds unknown. Anything else: no focus request.
+        /// </summary>
+        private static bool Focus(JsonElement e, out System.Drawing.Rectangle? bounds)
+        {
+            bounds = null;
+            if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty("focus", out JsonElement f))
+            {
+                return false;
+            }
+
+            if (f.ValueKind == JsonValueKind.True)
+            {
+                return true;
+            }
+
+            if (f.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            static int N(JsonElement o, string name) => o.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out double d) ? (int)Math.Round(d) : int.MinValue;
+            int left = N(f, "left"), top = N(f, "top"), width = N(f, "width"), height = N(f, "height");
+            if (left != int.MinValue && top != int.MinValue && width > 0 && height > 0)
+            {
+                bounds = new System.Drawing.Rectangle(left, top, width, height);
+            }
+
+            return true;
+        }
 
         /// <summary>Optional "alreadyInInput": true = paste only, nothing added (the input already ended with the text).</summary>
         private static bool AlreadyInInput(JsonElement e) =>

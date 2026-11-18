@@ -11,6 +11,7 @@
 #   shot:<file>  screenshot of the primary screen (PNG)
 #   check        print whether the test window still has the focus
 #   seen         print the keys that reached the test window (CaptionRelay's own keys should not)
+#   fg           print which program's window is in front now
 # Windows PowerShell 5.1, ASCII only.
 param([Parameter(Mandatory = $true)][string]$Steps, [int]$GapMs = 300)
 
@@ -44,6 +45,10 @@ public static class KT {
 }
 "@
 
+Add-Type @"
+using System; using System.Runtime.InteropServices;
+public static class KTP { [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid); }
+"@
 $VK = @{ LCtrl = 0xA2; RCtrl = 0xA3; LShift = 0xA0; T = 0x54; F6 = 0x75; F7 = 0x76; F8 = 0x77; F9 = 0x78; F24 = 0x87;
          NumPlus = 0x6B; NumMinus = 0x6D; MainPlus = 0xBB; MainMinus = 0xBD }
 $KEYUP = 2; $EXT = 1
@@ -115,6 +120,7 @@ try {
                 $g.Dispose(); $bmp.Dispose()
                 (Get-Date).ToString('HH:mm:ss.fff') + "  screenshot $arg"
             }
+            'fg' { [System.Windows.Forms.Application]::DoEvents(); $h = [KT]::GetForegroundWindow(); $fp = 0; [void][KTP]::GetWindowThreadProcessId($h, [ref]$fp); (Get-Date).ToString('HH:mm:ss.fff') + '  in front: ' + (Get-Process -Id $fp -ErrorAction SilentlyContinue).ProcessName }
             'seen' { [System.Windows.Forms.Application]::DoEvents(); (Get-Date).ToString('HH:mm:ss.fff') + '  keys that reached the test window: ' + ($script:seenKeys -join ',') }
             'ctrlshiftt' { Step 'Ctrl+Shift+T (must not send)' { Down LCtrl; Down LShift; Tap T; Up LShift; Up LCtrl } }
             'wait' { Start-Sleep -Milliseconds ([int]$arg) }

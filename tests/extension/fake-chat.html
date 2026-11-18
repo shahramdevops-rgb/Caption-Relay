@@ -282,6 +282,36 @@
         expect(p.box.innerText.trim() === 'Tell me about your last project. and the team size', 'box: ' + JSON.stringify(p.box.innerText));
       });
 
+      await check('paste only: the input has the focus afterwards, caret at the end', async () => {
+        const p = build({ real: true, draft: 'already here' });
+        document.body.focus();
+        await chatApi.deliver(sel, 'and the new words', { submit: false });
+        expect(document.activeElement === p.box, 'focus on ' + (document.activeElement?.tagName ?? 'nothing'));
+        const s = window.getSelection();
+        expect(s.isCollapsed && p.box.contains(s.focusNode), 'caret not in the box');
+        const tail = document.createRange();
+        tail.setStart(s.focusNode, s.focusOffset);
+        tail.setEnd(p.box, p.box.childNodes.length);
+        expect(tail.toString().trim() === '', 'caret not at the end: ' + JSON.stringify(tail.toString()));
+      });
+
+      await check('paste only: a long paste is scrolled to its end (last words in view), also inside a wrapper', async () => {
+        const p = build({ real: true });
+        p.box.style.maxHeight = '40px';
+        p.box.style.overflowY = 'auto';
+        const wrapper = p.box.parentElement;
+        wrapper.style.maxHeight = '60px';
+        wrapper.style.overflowY = 'auto';
+        const many = Array.from({ length: 200 }, (_, i) => 'w' + (i + 1)).join(' ');
+        await chatApi.deliver(sel, many, { submit: false });
+        await new Promise((r) => setTimeout(r, 120)); // the second scroll (after re-render)
+        const atEnd = (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+        expect(p.box.scrollHeight > p.box.clientHeight, 'box does not scroll; test is wrong');
+        expect(atEnd(p.box), `box at ${p.box.scrollTop} of ${p.box.scrollHeight - p.box.clientHeight}`);
+        expect(wrapper.scrollHeight <= wrapper.clientHeight + 1 || atEnd(wrapper), 'wrapper not at its end');
+        p.box.style.maxHeight = p.box.style.overflowY = wrapper.style.maxHeight = wrapper.style.overflowY = '';
+      });
+
       await check('paste only: all of it already in the input → nothing added, alreadyInInput', async () => {
         const p = build({ real: true, draft: 'what is a delegate in C sharp' });
         const ack = await chatApi.deliver(sel, 'What is a delegate in C sharp?', { submit: false });

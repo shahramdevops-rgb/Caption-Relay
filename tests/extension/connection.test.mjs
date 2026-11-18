@@ -101,6 +101,16 @@ test('send with submit: true (tap key held) reaches the provider as opts.submit'
   assert.deepEqual(seen, [{ submit: true }, { submit: false }]);
 });
 
+test('the ack carries the focus request (window bounds) from the provider', async () => {
+  const r = rig({ onSend: async () => ({ status: 'sent', submitted: false, provider: 'gemini', focus: { left: 0, top: 0, width: 1280, height: 1400 } }) });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'f1', text: 'paste me' });
+  await tick();
+  assert.deepEqual(r.socket().sent.at(-1).focus, { left: 0, top: 0, width: 1280, height: 1400 });
+});
+
 test('a paste-only ack carries submitted: false', async () => {
   const r = rig({ onSend: async () => ({ status: 'sent', submitted: false, provider: 'gemini' }) });
   r.conn.start();

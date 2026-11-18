@@ -42,6 +42,24 @@ async function protect(tab) {
   }
 }
 
+/**
+ * After a paste: makes the tab the active one in its window and brings the window forward (restored if minimized),
+ * so the input that holds the pasted text has the keyboard focus. Returns the window's bounds (screen DIPs) for the
+ * app, which brings it to the front itself if Windows did not let Chrome do it; true if the bounds are unknown.
+ */
+async function focusTab(tab) {
+  try {
+    await chrome.tabs.update(tab.id, { active: true });
+    const before = await chrome.windows.get(tab.windowId);
+    await chrome.windows.update(tab.windowId, before.state === 'minimized' ? { state: 'normal', focused: true } : { focused: true });
+    const win = await chrome.windows.get(tab.windowId);
+    return { left: win.left, top: win.top, width: win.width, height: win.height };
+  } catch (e) {
+    warn(`could not focus tab ${tab.id}: ${e?.message ?? e}`);
+    return true;
+  }
+}
+
 /** One line about the target tab for the app log. */
 async function describe(tab) {
   let windowState = '?';
@@ -168,7 +186,7 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
 
     /**
      * @param {string} text
-     * @param {{id: string, submit?: boolean, merge?: boolean, onResult: (status: string, detail?: string, submitted?: boolean) => void}} ctx
+     * @param {{id: string, submit?: boolean, merge?: boolean, focus?: boolean, onResult: (status: string, detail?: string, submitted?: boolean) => void}} ctx
      *   submit false = only paste into the input. onResult reports the final result when the ack was "queued" and
      *   delivery happens here (new or reloaded tab).
      */
@@ -182,7 +200,9 @@ export function createWebProvider({ id, name, origin, newChatUrl, contentFiles }
         if (!(await isAlive(tab.id))) return reloadAndDeliver(tab, text, ctx, `did not answer a ping within ${PING_TIMEOUT_MS} ms (frozen?)`);
         const pingMs = Date.now() - t0;
         if (pingMs > 200) log(`tab ${tab.id} answered the ping after ${pingMs} ms`);
-        return deliverToTab(tab.id, text, ctx.id, ctx.submit !== false, ctx.merge === true);
+        const ack = await deliverToTab(tab.id, text, ctx.id, ctx.submit !== false, ctx.merge === true);
+        if (ctx.focus && ack?.status === 'sent' && ack.submitted === false) ack.focus = await focusTab(tab);
+        return ack;
       }
 
       // No tab: open one in the background and deliver once it has loaded. That takes longer than the app waits

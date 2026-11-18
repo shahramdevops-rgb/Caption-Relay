@@ -24,7 +24,7 @@ namespace CaptionRelay.Sending
 
     public sealed class SendOutcome
     {
-        public SendOutcome(SendStatus status, string? detail = null, string? provider = null, string? id = null, bool submitted = true, bool alreadyInInput = false)
+        public SendOutcome(SendStatus status, string? detail = null, string? provider = null, string? id = null, bool submitted = true, bool alreadyInInput = false, bool focusChat = false, System.Drawing.Rectangle? chatBounds = null)
         {
             Status = status;
             Detail = detail;
@@ -32,6 +32,8 @@ namespace CaptionRelay.Sending
             Id = id;
             Submitted = submitted;
             AlreadyInInput = alreadyInInput;
+            FocusChat = focusChat;
+            ChatBounds = chatBounds;
         }
 
         public SendStatus Status { get; }
@@ -52,6 +54,15 @@ namespace CaptionRelay.Sending
 
         /// <summary>Paste only: nothing was added because the chat's input already ended with this text.</summary>
         public bool AlreadyInInput { get; }
+
+        /// <summary>
+        /// The extension focused the chat after the paste (its tab, window and input) and asks the app to make sure the
+        /// window is in front (Windows may not let the browser do it).
+        /// </summary>
+        public bool FocusChat { get; }
+
+        /// <summary>That browser window's bounds in screen DIPs, when the extension knows them.</summary>
+        public System.Drawing.Rectangle? ChatBounds { get; }
     }
 
     /// <summary>Delivers text to the browser extension (implemented by the WebSocket server in Phase 5).</summary>

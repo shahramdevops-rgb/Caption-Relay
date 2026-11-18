@@ -68,6 +68,12 @@ namespace CaptionRelay.Sending
         /// <summary>Tap selection started, grew, was delivered or was cancelled (see <see cref="Taps"/>).</summary>
         public event Action? TapChanged;
 
+        /// <summary>
+        /// A paste went into the chat and the extension focused it: make sure its browser window (bounds in screen
+        /// DIPs, if known) is in front so Enter reaches the input.
+        /// </summary>
+        public event Action<System.Drawing.Rectangle?>? ChatFocusRequested;
+
         /// <summary>Sends acked "queued" that still wait for the chat to finish answering.</summary>
         public int QueuedCount => _queued.Count;
 
@@ -349,12 +355,31 @@ namespace CaptionRelay.Sending
                 _capture.ConfirmPasted(ticket, "(already in the input)");
                 Log.Info($"Send result: nothing added, already in the input{via}.");
                 Report(FeedbackKind.Info, "Already in the input");
+                RequestChatFocus(outcome);
             }
             else
             {
                 _capture.ConfirmPasted(ticket, PastedNote);
                 Log.Info($"Send result: pasted{via}{detail}.");
                 Report(FeedbackKind.Success, "Pasted ✓");
+                RequestChatFocus(outcome);
+            }
+        }
+
+        private void RequestChatFocus(SendOutcome outcome)
+        {
+            if (!outcome.FocusChat)
+            {
+                return;
+            }
+
+            try
+            {
+                ChatFocusRequested?.Invoke(outcome.ChatBounds);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ChatFocusRequested handler failed", ex);
             }
         }
 

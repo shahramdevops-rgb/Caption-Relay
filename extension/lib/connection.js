@@ -193,7 +193,7 @@ export class RelayConnection {
     } catch (e) {
       ack = { status: 'error', detail: String(e?.message ?? e) };
     }
-    this.sendJson({ type: 'ack', id: m.id, status: ack.status, detail: ack.detail, provider: ack.provider, submitted: ack.submitted, alreadyInInput: ack.alreadyInInput });
+    this.sendJson({ type: 'ack', id: m.id, status: ack.status, detail: ack.detail, provider: ack.provider, submitted: ack.submitted, alreadyInInput: ack.alreadyInInput, focus: ack.focus });
   }
 
   /** Final result of a send that was acked "queued" (submitted false = only pasted into the input). */

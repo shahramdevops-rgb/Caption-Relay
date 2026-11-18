@@ -128,6 +128,49 @@
     return !!find(sel.stopButton);
   }
 
+  /**
+   * Scrolls the input to its end, like Ctrl+End, so the last pasted words are in view: the box and every scrolling
+   * element around it up to the input container (never the conversation or the page).
+   */
+  function scrollToEnd(sel, box) {
+    let stop = null;
+    for (const s of sel?.inputContainer || []) {
+      stop = box.closest(s);
+      if (stop) break;
+    }
+    let depth = 0;
+    for (let el = box; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+      if (el.scrollHeight > el.clientHeight + 1) {
+        const oy = getComputedStyle(el).overflowY;
+        if (oy === 'auto' || oy === 'scroll' || oy === 'overlay' || el === box) el.scrollTop = el.scrollHeight;
+      }
+      if (el === stop || (!stop && ++depth >= 4)) break;
+    }
+  }
+
+  /**
+   * Focuses the input with the caret after its last character (Enter then sends all of it) and scrolls it to the end.
+   * Done again a moment later: the editors re-render after a paste and may scroll back.
+   */
+  function focusEnd(box, sel) {
+    const run = () => {
+      try {
+        box.focus();
+        const range = document.createRange();
+        range.selectNodeContents(box);
+        range.collapse(false);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+        scrollToEnd(sel, box);
+      } catch (e) {
+        console.warn(TAG, 'focus failed', e);
+      }
+    };
+    run();
+    setTimeout(run, 60);
+  }
+
   function selectAll(box) {
     box.focus();
     const range = document.createRange();
@@ -284,7 +327,10 @@
     // Paste only, and a held tap key (paste + send): merge with what the input holds. Empty text: send what is there.
     const mergeIt = !submitIt || opts.merge === true;
     const full = !text ? null : mergeIt ? mergeText(box.innerText, text) : appendText(box, text);
-    if (full === null && !submitIt) return { status: 'sent', submitted: false, alreadyInInput: true, detail: 'already in the input' };
+    if (full === null && !submitIt) {
+      focusEnd(box, sel);
+      return { status: 'sent', submitted: false, alreadyInInput: true, detail: 'already in the input' };
+    }
     let method = 'already in the input';
     if (full !== null) {
       method = await insert(box, full);
@@ -293,6 +339,7 @@
     if (submitIt && !boxText(box)) return { status: 'error', detail: 'nothing to send' };
 
     if (!submitIt) {
+      focusEnd(box, sel);
       const ms = Math.round(performance.now() - t0);
       const merged = full.length < draft.length + 1 + text.length;
       console.log(TAG, `paste: insert=${method}, draft=${draft.length > 0}, merged with the input=${merged}, ${ms} ms (not submitted)`);
@@ -488,5 +535,5 @@
     console.log(TAG, `${name} content script ready`);
   }
 
-  globalThis.CaptionRelayWebChat = { mergeText, deliver, deliverOrQueue, queueLength: () => queue.items.length, test, diagnose, isBusy, find, norm, listen };
+  globalThis.CaptionRelayWebChat = { mergeText, focusEnd, deliver, deliverOrQueue, queueLength: () => queue.items.length, test, diagnose, isBusy, find, norm, listen };
 })();

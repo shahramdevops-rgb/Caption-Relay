@@ -33,6 +33,7 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 | ext → app | `{"type":"ack","id":"<guid>","status":"error","detail":"input not found","provider":"gemini"}` | failed |
 | ext → app | `{"type":"ack","id":"<guid>","status":"sent","submitted":false,"provider":"gemini"}` | pasted into the chat's input but not submitted (the extension's default; the user sends it). Missing `submitted` = `true`. Submitted text is used up (the next send starts after it); pasted text is not (the next press sends it again and the extension leaves out what the input already ends with) |
 | ext → app | `{"type":"ack","id":"<guid>","status":"sent","submitted":false,"alreadyInInput":true}` | paste only: nothing added, the input already ended with this text |
+| ext → app | `{"type":"ack",…,"submitted":false,"focus":{"left":0,"top":0,"width":1280,"height":1400}}` | paste only, "Jump to the chat after pasting" on: the extension activated the tab, focused the window and the input; the app brings that browser window (bounds in screen DIPs; `true` = unknown) to the front if Windows did not let the browser do it |
 
 | ext → app | `{"type":"result","id":"<guid>","status":"sent","provider":"gemini"}` | final result of a send acked `queued` (submitted after the answer ended, or delivered to a new / reloaded tab); `status` `error` + `detail` if it was given up; optional `submitted: false` as in `ack` |
 | ext → app | `{"type":"log","level":"info","text":"…"}` | diagnostics for the app log (page structure, timings — never chat text) |

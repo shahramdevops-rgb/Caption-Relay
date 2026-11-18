@@ -280,6 +280,21 @@ namespace CaptionRelay.Tests
             await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", submitted = false, alreadyInInput = true });
             Assert.True((await sending).AlreadyInInput);
 
+            sending = server.SendAsync("paste and focus");
+            send = (await c.ReceiveType("send"))!.Value;
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", submitted = false, focus = new { left = -8, top = 10, width = 1290.7, height = 1400 } });
+            SendOutcome focused = await sending;
+            Assert.True(focused.FocusChat);
+            Assert.Equal(new System.Drawing.Rectangle(-8, 10, 1291, 1400), focused.ChatBounds);
+
+            sending = server.SendAsync("focus, bounds unknown");
+            send = (await c.ReceiveType("send"))!.Value;
+            await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", submitted = false, focus = true });
+            focused = await sending;
+            Assert.True(focused.FocusChat);
+            Assert.Null(focused.ChatBounds);
+            Assert.False(pasted.FocusChat);
+
             sending = server.SendAsync("send me");
             send = (await c.ReceiveType("send"))!.Value;
             await c.Send(new { type = "ack", id = send.GetProperty("id").GetString(), status = "sent", provider = "gemini" });

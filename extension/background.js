@@ -4,7 +4,8 @@ import { getProvider, DEFAULT_PROVIDER } from './providers/registry.js';
 import { log, warn, setForwarder } from './lib/log.js';
 
 // autoSubmit false (default): the text is only pasted into the chat's input; the user presses Enter themselves.
-const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER, autoSubmit: false };
+// focusAfterPaste true (default): after a paste the chat's tab, window and input get the focus, so Enter sends it.
+const DEFAULTS = { port: 47321, token: '', provider: DEFAULT_PROVIDER, autoSubmit: false, focusAfterPaste: true };
 const NATIVE_HOST = 'com.captionrelay.host';
 const NATIVE_RETRY_MS = 20000;
 let lastNativeFetch = 0;
@@ -56,7 +57,8 @@ async function deliver(text, id, opts = {}) {
   const merge = forced || !submit;
   log(`send ${String(id).slice(0, 8)}: ${text.length} chars -> ${provider.id}${forced ? ' (paste + send: key held)' : submit ? '' : ' (paste only)'}`);
   const onResult = (status, detail, submitted) => connection.sendResult(id, status, detail, provider.id, submitted);
-  const ack = await provider.deliver(text, { id, onResult, submit, merge });
+  const focus = !submit && settings.focusAfterPaste !== false;
+  const ack = await provider.deliver(text, { id, onResult, submit, merge, focus });
   log(`ack ${String(id).slice(0, 8)}: ${ack.status}${ack.detail ? ' (' + ack.detail + ')' : ''}`);
   return { provider: provider.id, ...ack };
 }

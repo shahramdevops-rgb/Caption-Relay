@@ -46,6 +46,17 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public void ChatWindow_Pick_ClosestToTheExtensionsBounds_ElseTopmost()
+        {
+            var rects = new[] { new Rectangle(1280, 0, 1280, 1400), new Rectangle(-8, -8, 1296, 1416), new Rectangle(100, 100, 800, 600) };
+            Assert.Equal(1, ChatWindow.Pick(rects, new Rectangle(0, 0, 1280, 1400))); // invisible borders tolerated
+            Assert.Equal(2, ChatWindow.Pick(rects, new Rectangle(100, 100, 800, 600)));
+            Assert.Equal(0, ChatWindow.Pick(rects, new Rectangle(5000, 5000, 300, 300))); // nothing close: topmost
+            Assert.Equal(0, ChatWindow.Pick(rects, null));
+            Assert.Equal(-1, ChatWindow.Pick(Array.Empty<Rectangle>(), null));
+        }
+
+        [Fact]
         public void Tooltip_NeverOver127Chars()
         {
             string t = IndicatorText.Tooltip(true, false, "Gemini", new string('x', 200));

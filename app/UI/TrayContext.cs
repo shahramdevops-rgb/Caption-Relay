@@ -125,6 +125,7 @@ namespace CaptionRelay.UI
             _controller = controller;
             controller.Feedback += OnFeedback;
             controller.TapChanged += UpdateTapPreview;
+            controller.ChatFocusRequested += OnChatFocusRequested;
             _timer.Tick += (_, _) => UpdateStatus();
             _timer.Start();
             UpdateStatus();
@@ -303,6 +304,33 @@ namespace CaptionRelay.UI
         {
             _indicator.Flash(kind, message);
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// After a paste the extension focuses the chat (tab, window, input). A moment later, if Windows did not let
+        /// the browser come to the front, CaptionRelay brings that window forward itself.
+        /// </summary>
+        private void OnChatFocusRequested(Rectangle? bounds)
+        {
+            var wait = new Timer { Interval = 200 };
+            wait.Tick += (_, _) =>
+            {
+                wait.Dispose();
+                if (_exiting)
+                {
+                    return;
+                }
+
+                try
+                {
+                    Log.Info($"Chat window focus: {ChatWindow.Activate(bounds)}.");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Bringing the chat window to the front failed", ex);
+                }
+            };
+            wait.Start();
         }
 
         /// <summary>Shows the tap selection above the indicator while tapping (if enabled); hides it otherwise.</summary>

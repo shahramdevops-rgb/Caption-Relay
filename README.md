@@ -105,7 +105,8 @@ receives the text.
 2. Keep that chat as the last Gemini tab you used — the text goes to the most recently active Gemini tab
    (if none is open, the extension opens a new chat in the background).
 3. Talk / listen. Press **numpad −** to paste everything said since your last **F9** at the end of the chat's input
-   box, one space after anything already there (no new line). Check it and press **Enter** in the chat to send it.
+   box, one space after anything already there (no new line). The chat's input then has the focus (see **Jump to
+   the chat after pasting**), so you just press **Enter** to send it.
    Only want the latest part (the question just asked)? Tap **numpad +**: once = the last 15 words, quickly again =
    15 more per tap. While you tap, a see-through preview above the indicator highlights exactly what will go in
    (older words dimmed before it); it is pasted 0.4 s after your last tap. **Hold numpad +** on the last press
@@ -136,6 +137,10 @@ Click the CaptionRelay icon in the browser toolbar (pin it via the puzzle piece)
 - **Deliver to**: Gemini, ChatGPT or Claude.
 - **Press Enter for me**: off (default) = the text is only pasted into the chat's input and you send it; on = it is
   pasted and submitted (queued while the chat is answering).
+- **Jump to the chat after pasting** (on by default): after every paste the chat's tab becomes the active one, its
+  browser window comes to the front and the cursor sits at the end of the input, so pressing **Enter** sends it —
+  wherever your focus was before (Live Captions, another app, the extension popup). The input is also scrolled to its
+  end (like Ctrl+End), so the last pasted words are in view even when the text is longer than the box.
 - **Shortcuts**: the app's paste, tap and skip keys (as set in config.json) and what each one does.
 - **Show tap preview**: turns the see-through tap preview on or off (also in the taskbar window and the tray menu;
   all three stay in step).
