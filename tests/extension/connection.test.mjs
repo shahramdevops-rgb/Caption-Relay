@@ -230,3 +230,14 @@ test('status() carries the app hotkeys from welcome (null when an older app does
   r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.0.9', protocol: 1 });
   assert.equal(r.conn.status().app.sendKey, null);
 });
+
+test('sendQuit sends {type:"quit"} only while connected', async () => {
+  const r = rig();
+  assert.equal(r.conn.sendQuit(), false);
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1 });
+  assert.equal(r.conn.sendQuit(), true);
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'quit' });
+});

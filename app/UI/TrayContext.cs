@@ -12,8 +12,9 @@ using CaptionRelay.Sending;
 namespace CaptionRelay.UI
 {
     /// <summary>
-    /// The app's UI: tray icon + menu, the indicator pill, sounds. Polls capture/relay status every 250 ms on the UI
-    /// thread (no cross-thread UI calls) and shows SendController feedback.
+    /// The app's UI: taskbar window, tray icon + menu, the indicator pill. Polls capture/relay status every 250 ms on
+    /// the UI thread (no cross-thread UI calls) and shows SendController feedback. Every way of exiting (menu Exit,
+    /// closing the taskbar window, the extension's switch) goes through <see cref="ExitThreadCore"/>.
     /// </summary>
     public sealed class TrayContext : ApplicationContext
     {
@@ -25,12 +26,11 @@ namespace CaptionRelay.UI
         private readonly NotifyIcon _tray;
         private readonly ContextMenuStrip _menu;
         private readonly ToolStripMenuItem _showItem;
-        private readonly ToolStripMenuItem _soundItem;
         private readonly ToolStripMenuItem _hideLcItem;
         private readonly ToolStripMenuItem _startupItem;
         private readonly StartupRegistration _startup = new StartupRegistration();
         private readonly IndicatorForm _indicator;
-        private readonly Sounds _sounds = new Sounds();
+        private readonly MainForm _main;
         private readonly Timer _timer = new Timer { Interval = 250 };
         private readonly Icon _iconOk = AppIcons.Create(true);
         private readonly Icon _iconBad = AppIcons.Create(false);
@@ -39,22 +39,20 @@ namespace CaptionRelay.UI
         private IntPtr _previousForeground;
         private bool? _lastAllOk;
         private SetupForm? _setup;
+        private bool _exiting;
 
-        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow)
+        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow, string sendKeyLabel, string skipKeyLabel)
         {
             _config = config;
             _capture = capture;
             _relay = relay;
             _reader = reader;
             _liveCaptionsWindow = liveCaptionsWindow;
-            _sounds.Enabled = config.Sound;
 
             _showItem = new ToolStripMenuItem("Hide indicator", null, (_, _) => SetIndicatorVisible(!_indicator!.Visible));
-            _soundItem = new ToolStripMenuItem("Sound", null, (_, _) => ToggleSound()) { Checked = config.Sound };
             _hideLcItem = new ToolStripMenuItem("Hide Live Captions window", null, (_, _) => ToggleHideLiveCaptions()) { Checked = config.HideLiveCaptions };
             _menu = new ContextMenuStrip();
             _menu.Items.Add(_showItem);
-            _menu.Items.Add(_soundItem);
             _menu.Items.Add(_hideLcItem);
             _menu.Items.Add(_startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows()) { Checked = config.StartWithWindows });
             _menu.Items.Add(new ToolStripSeparator());
@@ -65,6 +63,12 @@ namespace CaptionRelay.UI
             _menu.Items.Add(new ToolStripMenuItem("Reconnect Live Captions", null, (_, _) => ReconnectLiveCaptions()));
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
+
+            _main = new MainForm(sendKeyLabel, skipKeyLabel);
+            _main.SetupRequested += ShowSetup;
+            _main.SessionsRequested += OpenSessions;
+            _main.ExitRequested += ExitThread;
+            _main.ShowMinimizedOnTaskbar();
 
             // A menu takes the focus while open; give it back to the app the user was in when it closes.
             _menu.Opening += (_, _) => RememberForeground();
@@ -163,7 +167,16 @@ namespace CaptionRelay.UI
 
         protected override void ExitThreadCore()
         {
-            Log.Info("Exit requested from the menu.");
+            if (_exiting)
+            {
+                return;
+            }
+
+            _exiting = true;
+            Log.Info("Exit requested.");
+            _timer.Stop();
+            _setup?.Close();
+            _main.CloseForExit();
             base.ExitThreadCore();
         }
 
@@ -177,7 +190,7 @@ namespace CaptionRelay.UI
                 _tray.Dispose();
                 _menu.Dispose();
                 _indicator.Dispose();
-                _sounds.Dispose();
+                _main.Dispose();
                 _iconOk.Dispose();
                 _iconBad.Dispose();
             }
@@ -243,6 +256,7 @@ namespace CaptionRelay.UI
                 bool connected = _relay.IsConnected;
                 string provider = Provider();
                 _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail, _controller.QueuedCount);
+                _main.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, _controller.QueuedCount);
                 _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, s.PendingWords, _relay.StartError);
 
                 if (connected && !_config.ExtensionSetUp)
@@ -266,7 +280,6 @@ namespace CaptionRelay.UI
         private void OnFeedback(FeedbackKind kind, string message)
         {
             _indicator.Flash(kind, message);
-            _sounds.Play(kind, message);
             UpdateStatus();
         }
 
@@ -295,14 +308,6 @@ namespace CaptionRelay.UI
         }
 
         private void UpdateShowItem() => _showItem.Text = _indicator.Visible ? "Hide indicator" : "Show indicator";
-
-        private void ToggleSound()
-        {
-            _config.Sound = !_config.Sound;
-            _sounds.Enabled = _config.Sound;
-            _soundItem.Checked = _config.Sound;
-            SaveConfig();
-        }
 
         private void ToggleHideLiveCaptions()
         {

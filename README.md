@@ -103,20 +103,25 @@ Text on the Live Captions screen when the app starts belongs to an earlier conve
 
 Click the CaptionRelay icon in the browser toolbar (pin it via the puzzle piece) to open its popup:
 
-- **On/off switch**: off disconnects the extension from the app (badge grey `OFF`); the hotkeys then send nothing and
-  the app keeps the text until you turn it back on.
-- **Status**: connected / not connected (with the reason) / turned off.
+- **On/off switch**: shows ON while the CaptionRelay app runs (badge green `ON`). **Off closes the app and Live
+  Captions**; **on starts the app** (which starts Live Captions). Starting or closing the app any other way (desktop,
+  taskbar, tray) moves the switch too — opening the popup checks at once, otherwise within 30 s.
+- **Status**: on / off / starting / closing, with the reason when something failed.
 - **Deliver to**: Gemini, ChatGPT or Claude.
 - **Shortcuts**: the app's send and skip keys (as set in config.json) and what each one does.
 - **All settings** opens the full options page (port, token, Test).
 
-## Indicator and tray menu
+## Taskbar window, indicator and tray menu
 
+- **Taskbar**: CaptionRelay has a taskbar button like any app. It starts minimized and never takes your focus; click
+  it to see the status and the shortcuts. **Closing it (the X, or right-click → Close window) exits CaptionRelay
+  completely and closes Live Captions**; the extension switch turns off. Menu **Exit** does the same.
 - Dots: Live Captions connected / extension connected (the label is the chat the extension delivers to).
 - `N words pending` — what the next send would contain; `· queued` — a send waits for Gemini to finish.
 - Click the indicator to see the end of the pending text; drag to move it (the position is saved).
-- Menu (right-click the indicator or the tray icon): show/hide indicator, sound, hide Live Captions window, start
-  with Windows, open sessions folder, copy token, open config, reconnect Live Captions, exit.
+- Menu (right-click the indicator or the tray icon): show/hide indicator, hide Live Captions window, start
+  with Windows, set up browser extension, open sessions folder, copy token, open config, reconnect Live Captions,
+  exit. The app makes no sounds.
 
 ## config.json
 
@@ -131,8 +136,8 @@ it while the app is closed (or use the menu for the common options).
 | `prefix` | `""` | Text put before every message. |
 | `minSendChars` | 3 | Shorter pending text is not sent ("Nothing new"). |
 | `pollMs` | 120 | How often Live Captions is read. |
-| `sound` | true | Short tones for sent / queued / error. |
 | `startLiveCaptions` | true | Start Live Captions (and restart it if closed). |
+| `closeLiveCaptionsOnExit` | true | Close Live Captions when CaptionRelay exits. |
 | `hideLiveCaptions` | false | Keep the Live Captions window off-screen. |
 | `startWithWindows` | false | Start with Windows (HKCU Run entry). |
 | `indicatorX/Y`, `indicatorVisible` | — | Indicator position and visibility. |

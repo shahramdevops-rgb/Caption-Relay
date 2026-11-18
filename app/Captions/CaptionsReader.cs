@@ -45,6 +45,37 @@ namespace CaptionRelay.Captions
         }
 
         /// <summary>
+        /// Closes every Live Captions process: asks its window to close, and ends the process if it is still running
+        /// after <paramref name="wait"/>. Returns how many processes were closed.
+        /// </summary>
+        public static int CloseAll(TimeSpan wait)
+        {
+            int closed = 0;
+            foreach (Process process in Process.GetProcessesByName(ProcessName))
+            {
+                using (process)
+                {
+                    try
+                    {
+                        if (!process.CloseMainWindow() || !process.WaitForExit((int)wait.TotalMilliseconds))
+                        {
+                            process.Kill();
+                            process.WaitForExit(2000);
+                        }
+
+                        closed++;
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception || ex is NotSupportedException)
+                    {
+                        // Already gone, or not ours to end.
+                    }
+                }
+            }
+
+            return closed;
+        }
+
+        /// <summary>
         /// Normalized caption text ("" when only the placeholder is shown), or null when the captions window
         /// isn't available.
         /// </summary>

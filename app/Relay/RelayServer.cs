@@ -57,6 +57,7 @@ namespace CaptionRelay.Relay
         private const int MaxMessageBytes = 1 << 20;
 
         private readonly RelayOptions _options;
+        private int _disposed;
         private readonly object _lock = new object();
         private readonly List<Connection> _connections = new List<Connection>();
         private readonly ConcurrentDictionary<string, PendingSend> _pending = new ConcurrentDictionary<string, PendingSend>();
@@ -74,6 +75,21 @@ namespace CaptionRelay.Relay
 
         /// <inheritdoc />
         public event Action<string, SendOutcome>? DeliveryResult;
+
+        /// <summary>The extension asked the app to shut down (popup switch turned off). Raised on a network thread.</summary>
+        public event Action? QuitRequested;
+
+        private void RaiseQuitRequested()
+        {
+            try
+            {
+                QuitRequested?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("QuitRequested handler failed", ex);
+            }
+        }
 
         public bool IsConnected
         {
@@ -182,6 +198,11 @@ namespace CaptionRelay.Relay
 
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                return;
+            }
+
             _shutdown.Cancel();
             List<Connection> open;
             lock (_lock)
@@ -349,6 +370,11 @@ namespace CaptionRelay.Relay
                         break;
                     case "result":
                         OnResult(conn, m);
+                        break;
+                    case "quit":
+                        // The user turned CaptionRelay off in the extension popup (authenticated connection only).
+                        Log.Info($"Quit requested by the extension ({conn.Client}).");
+                        RaiseQuitRequested();
                         break;
                     default:
                         break; // forward compatible: unknown types are ignored

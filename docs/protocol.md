@@ -32,6 +32,18 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 
 | ext → app | `{"type":"result","id":"<guid>","status":"sent","provider":"gemini"}` | final result of a send acked `queued` (submitted after the answer ended); `status` `error` + `detail` if it was given up |
 | ext → app | `{"type":"log","level":"info","text":"…"}` | diagnostics for the app log (page structure, timings — never chat text) |
+| ext → app | `{"type":"quit"}` | the user turned CaptionRelay off in the extension popup: the app exits (and closes Live Captions); only after a successful `hello` |
+
+## Native messaging host (`com.captionrelay.host`)
+
+Not part of the WebSocket protocol: the app's exe also answers Chrome native messaging (registered in HKCU by the
+app on every start; only the CaptionRelay extension id may call it). One request per call, 4-byte length + JSON:
+
+| Request | Reply |
+|---|---|
+| `{"type":"getConfig"}` (or no type) | `{"type":"config","port":47321,"token":"…"}` |
+| `{"type":"launch"}` | `{"type":"launched","status":"started" \| "started via explorer" \| "already running"}` — starts the app (popup switch on) |
+| any, extension not in `allowedExtensionIds` / failure | `{"type":"error","reason":"…"}` |
 
 Either side may also send `ping` and get `pong`.
 

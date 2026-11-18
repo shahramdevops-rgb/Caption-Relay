@@ -149,5 +149,16 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       hotkeys with what they do. The keys come from new optional `welcome` fields `sendKey` / `skipKey` (last known
       keys cached for when the app is not running). "All settings" opens the options page. Checked in Chrome with a
       stubbed chrome.* API: connected, turned off and not-connected states, light/dark colours.
+- [x] **Phase 18 — App on/off from the popup, taskbar window, no sounds**: the popup switch now controls the app:
+      off sends the new `quit` message (app exits and closes Live Captions), on asks the native host to `launch` the
+      app (started outside Chrome's job object, Explorer as fallback; "already running" if it is). The switch shows ON
+      exactly while the app is connected. New taskbar window (starts minimized without activating; status + hotkeys;
+      closing it exits everything). Live Captions is closed on every exit (`closeLiveCaptionsOnExit`, default true).
+      Sounds removed. Measured 2026-11-18 with build\CaptionRelay.exe: taskbar window minimized, not a tool window,
+      CaptionRelay never became the foreground window; closing it → app and Live Captions gone, log "Exiting
+      normally"; native-host launch → app running after the host exited ("--from-extension"), second launch →
+      "already running"; quit from RelayTestClient --quit → app and Live Captions gone 80 ms later.
+      Not tested here: the popup in real Chrome (launch from inside Chrome's job object).
+      Known: starting Live Captions brings its window to the front (as before this phase).
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).

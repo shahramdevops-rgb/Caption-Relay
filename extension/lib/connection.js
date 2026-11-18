@@ -188,6 +188,11 @@ export class RelayConnection {
     return this.sendJson({ type: 'result', id, status: status === 'sent' ? 'sent' : 'error', detail, provider });
   }
 
+  /** Asks the app to exit (popup switch off). Returns false when not connected. */
+  sendQuit() {
+    return this.sendJson({ type: 'quit' });
+  }
+
   /** Diagnostics into the app's log (only when connected; never chat text). */
   sendLog(level, text) {
     return this.sendJson({ type: 'log', level, text: String(text).slice(0, 4000) });

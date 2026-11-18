@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Text;
 using System.Threading;
 using CaptionRelay.Sending;
 using CaptionRelay.UI;
@@ -78,16 +77,6 @@ namespace CaptionRelay.Tests
         {
             var second = new Rectangle(1920, 0, 1920, 1040);
             Assert.Equal(new Point(2500, 200), IndicatorText.Place(new Point(2500, 200), new Size(300, 26), new[] { Primary, second }, Primary, 16));
-        }
-
-        [Fact]
-        public void Wave_IsValidPcm()
-        {
-            byte[] wav = Sounds.Wave((880, 70), (1320, 90));
-            Assert.Equal("RIFF", Encoding.ASCII.GetString(wav, 0, 4));
-            Assert.Equal("WAVE", Encoding.ASCII.GetString(wav, 8, 4));
-            int samples = 22050 * 70 / 1000 + 22050 * 90 / 1000;
-            Assert.Equal(44 + samples * 2, wav.Length);
         }
 
         [Fact]

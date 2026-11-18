@@ -58,6 +58,43 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public void NativeHost_Launch_CallsTheLauncher()
+        {
+            int launches = 0;
+            JsonElement reply = RunHost(() => new AppConfig { Token = "the-token-0123456789" }, "{\"type\":\"launch\"}", () =>
+            {
+                launches++;
+                return "started";
+            });
+            Assert.Equal(1, launches);
+            Assert.Equal("launched", reply.GetProperty("type").GetString());
+            Assert.Equal("started", reply.GetProperty("status").GetString());
+            Assert.False(reply.TryGetProperty("token", out _));
+        }
+
+        [Fact]
+        public void NativeHost_Launch_RefusedForExtensionNotInAllowList()
+        {
+            int launches = 0;
+            JsonElement reply = RunHost(() => new AppConfig { AllowedExtensionIds = new[] { "someotherid" } }, "{\"type\":\"launch\"}", () =>
+            {
+                launches++;
+                return "started";
+            });
+            Assert.Equal(0, launches);
+            Assert.Equal("error", reply.GetProperty("type").GetString());
+        }
+
+        [Fact]
+        public void AppLauncher_DetectsRunningAppByMutex()
+        {
+            string name = @"Local\CaptionRelayTests." + Guid.NewGuid().ToString("N");
+            Assert.False(AppLauncher.IsAppRunning(name));
+            using var instance = new SingleInstance(name);
+            Assert.True(AppLauncher.IsAppRunning(name));
+        }
+
+        [Fact]
         public void Extract_WritesTheExtensionAndIsIdempotent()
         {
             using var dir = new TempDir();
@@ -130,14 +167,14 @@ namespace CaptionRelay.Tests
 
         private static JsonElement RunHost(AppConfig config) => RunHost(() => config);
 
-        private static JsonElement RunHost(Func<AppConfig> load)
+        private static JsonElement RunHost(Func<AppConfig> load, string request = "{\"type\":\"getConfig\"}", Func<string>? launch = null)
         {
             var input = new MemoryStream();
-            NativeHost.WriteMessage(input, "{\"type\":\"getConfig\"}");
+            NativeHost.WriteMessage(input, request);
             input.Position = 0;
             var output = new MemoryStream();
 
-            Assert.Equal(0, NativeHost.Run(input, output, Origin, load));
+            Assert.Equal(0, NativeHost.Run(input, output, Origin, load, launch));
 
             output.Position = 0;
             string? json = NativeHost.ReadMessage(output);

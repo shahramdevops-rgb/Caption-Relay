@@ -23,7 +23,12 @@ namespace CaptionRelay
             {
                 using Stream stdin = Console.OpenStandardInput();
                 using Stream stdout = Console.OpenStandardOutput();
-                return NativeHost.Run(stdin, stdout, args[0], () => ConfigStore.Load(AppPaths.ConfigFile).Config);
+                return NativeHost.Run(
+                    stdin,
+                    stdout,
+                    args[0],
+                    () => ConfigStore.Load(AppPaths.ConfigFile).Config,
+                    () => AppLauncher.Launch(Environment.ProcessPath ?? Application.ExecutablePath));
             }
 
             // Must run before any window (including a MessageBox) is created.
@@ -37,6 +42,11 @@ namespace CaptionRelay
             if (!instance.IsFirst)
             {
                 Log.Warn($"Another instance is already running; exiting (pid {Environment.ProcessId}).");
+                if (Array.IndexOf(args, NativeHost.LaunchedByExtensionArg) >= 0)
+                {
+                    return 1; // the extension's "turn on" raced with a running app: nothing to tell the user
+                }
+
                 MessageBox.Show(
                     "CaptionRelay is already running.",
                     AppInfo.Name,
@@ -163,11 +173,33 @@ namespace CaptionRelay
                 Log.Error("Keyboard hook failed; hotkeys are disabled", ex);
             }
 
-            using var tray = new TrayContext(config, capture, relay, controller, reader, liveCaptionsWindow);
+            using var tray = new TrayContext(config, capture, relay, controller, reader, liveCaptionsWindow, sendKey.ToString(), skipKey.ToString());
+
+            // The extension popup's switch was turned off: shut everything down, as the Exit menu does.
+            relay.QuitRequested += () => invoker.BeginInvoke(new Action(tray.ExitThread));
+
             Application.Run(tray);
 
+            Shutdown(config, hook, relay, capture, liveCaptionsWindow);
             Log.Info("Exiting normally.");
             return 0;
+        }
+
+        /// <summary>
+        /// Order matters: stop the hotkeys, disconnect the extension (its switch shows off), stop capture (it would
+        /// restart Live Captions), put the Live Captions window back, then close Live Captions.
+        /// </summary>
+        private static void Shutdown(AppConfig config, KeyboardHook hook, RelayServer relay, CaptionCapture capture, LiveCaptionsWindow liveCaptionsWindow)
+        {
+            hook.Dispose();
+            relay.Dispose();
+            capture.Dispose();
+            liveCaptionsWindow.Dispose();
+            if (config.CloseLiveCaptionsOnExit)
+            {
+                int closed = CaptionsReader.CloseAll(TimeSpan.FromSeconds(3));
+                Log.Info($"Live Captions closed ({closed} process(es)).");
+            }
         }
 
         /// <summary>

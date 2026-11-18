@@ -285,6 +285,46 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
+        public async Task Quit_FromConnectedExtension_RaisesQuitRequested()
+        {
+            using RelayServer server = await StartServer();
+            int quits = 0;
+            server.QuitRequested += () => Interlocked.Increment(ref quits);
+            using Client c = await Client.Connect(Port);
+            await c.ReceiveType("welcome");
+            await c.Send(new { type = "quit" });
+            await WaitFor(() => Volatile.Read(ref quits) == 1);
+        }
+
+        [Fact]
+        public async Task Quit_BeforeHello_IsRefusedAndIgnored()
+        {
+            using RelayServer server = await StartServer();
+            int quits = 0;
+            server.QuitRequested += () => Interlocked.Increment(ref quits);
+            using Client c = await Client.Connect(Port, hello: false);
+            try
+            {
+                await c.Send(new { type = "quit" }); // first message must be hello: the server refuses and closes
+            }
+            catch (Exception ex) when (ex is WebSocketException || ex is ObjectDisposedException)
+            {
+                // Closed before the send completed: also fine.
+            }
+
+            await Task.Delay(300);
+            Assert.Equal(0, Volatile.Read(ref quits));
+        }
+
+        [Fact]
+        public void Dispose_Twice_IsSafe()
+        {
+            var server = new RelayServer(new RelayOptions { Port = FreePort(), Token = Token });
+            server.Dispose();
+            server.Dispose();
+        }
+
+        [Fact]
         public async Task NoAck_NoResponse_ThenLateAckIgnored_NextSendWorks()
         {
             using RelayServer server = await StartServer();

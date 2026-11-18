@@ -53,31 +53,39 @@ async function deliver(text, id) {
   return { provider: provider.id, ...ack };
 }
 
-// On/off switch in the popup. Off = disconnected from the app (the app keeps the text: "not connected").
-let enabled = true;
-
-async function loadEnabled() {
-  enabled = (await chrome.storage.local.get({ enabled: true })).enabled !== false;
-  return enabled;
-}
-
+/** Badge: green ON while the app is running and connected, grey OFF otherwise. */
 function updateBadge(state) {
-  if (!enabled) {
-    chrome.action.setBadgeText({ text: 'OFF' });
-    chrome.action.setBadgeBackgroundColor({ color: '#6e7781' });
-    chrome.action.setTitle({ title: 'CaptionRelay: turned off' });
-    return;
-  }
   const on = state === 'on';
   chrome.action.setBadgeText({ text: on ? 'ON' : 'OFF' });
-  chrome.action.setBadgeBackgroundColor({ color: on ? '#2e9d4f' : '#c62828' });
-  chrome.action.setTitle({ title: on ? 'CaptionRelay: connected' : 'CaptionRelay: not connected' });
+  chrome.action.setBadgeBackgroundColor({ color: on ? '#2e9d4f' : '#6e7781' });
+  chrome.action.setTitle({ title: on ? 'CaptionRelay: on (app running)' : 'CaptionRelay: off' });
 }
 
-/** Connects unless the user turned CaptionRelay off in the popup. */
-async function ensureIfEnabled() {
-  if (await loadEnabled()) connection.ensure();
-  else updateBadge('off');
+/**
+ * Popup switch ON: start the CaptionRelay app through the native messaging host, then connect. The app starts Live
+ * Captions itself. Resolves with { ok, status | detail }.
+ */
+async function turnOn() {
+  let reply;
+  try {
+    reply = await chrome.runtime.sendNativeMessage(NATIVE_HOST, { type: 'launch' });
+  } catch (e) {
+    warn('could not start the app:', String(e?.message ?? e));
+    return { ok: false, detail: 'Could not start the app. Open CaptionRelay.exe once, then try again.' };
+  }
+  if (reply?.type !== 'launched') {
+    return { ok: false, detail: reply?.reason ?? 'The app did not start.' };
+  }
+  log(`turn on: app ${reply.status}`);
+  setTimeout(() => connection.restart(), 800); // the app needs a moment to open its port; backoff retries after that
+  return { ok: true, status: reply.status };
+}
+
+/** Popup switch OFF: ask the app to exit (it closes Live Captions too). Resolves with { ok, detail? }. */
+function turnOff() {
+  if (connection.state !== 'on') return { ok: false, detail: 'The app is not running.' };
+  log('turn off: asking the app to exit');
+  return { ok: connection.sendQuit() };
 }
 
 const connection = new RelayConnection({
@@ -116,29 +124,18 @@ async function reportEnvironment() {
   }
 }
 
-// Reconnect check every 30 s, in case the worker was stopped and restarted without a socket.
+// Reconnect check every 30 s (the shortest alarm Chrome allows), so an app started from the desktop is found even
+// when the service worker was asleep.
 chrome.alarms.create('captionrelay-keepalive', { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'captionrelay-keepalive') ensureIfEnabled();
+  if (alarm.name === 'captionrelay-keepalive') connection.ensure();
 });
 
-chrome.runtime.onStartup.addListener(() => ensureIfEnabled());
-chrome.runtime.onInstalled.addListener(() => ensureIfEnabled());
+chrome.runtime.onStartup.addListener(() => connection.ensure());
+chrome.runtime.onInstalled.addListener(() => connection.ensure());
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local') return;
-  if (changes.enabled) {
-    enabled = changes.enabled.newValue !== false;
-    log(`turned ${enabled ? 'on' : 'off'} in the popup`);
-    if (enabled) {
-      connection.restart();
-    } else {
-      connection.stop();
-      updateBadge('off');
-    }
-    return;
-  }
-  if (enabled && (changes.port || changes.token || changes.provider)) {
+  if (area === 'local' && (changes.port || changes.token || changes.provider)) {
     log('settings changed; reconnecting');
     connection.restart();
   }
@@ -148,10 +145,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'status') {
-    loadEnabled().then((on) => sendResponse({ ...connection.status(), enabled: on }));
+    connection.ensure(); // opening the popup also looks for an app that was just started
+    sendResponse(connection.status());
+  } else if (message?.type === 'turn-on') {
+    turnOn().then(sendResponse);
     return true; // async response
+  } else if (message?.type === 'turn-off') {
+    sendResponse(turnOff());
   } else if (message?.type === 'reconnect') {
-    if (enabled) connection.restart();
+    connection.restart();
     sendResponse({ ok: true });
   } else if (message?.type === 'captionrelay-result') {
     // From a content script: queued sends were submitted (or given up) after the answer ended.
@@ -176,5 +178,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
+chrome.storage.local.remove('enabled'); // left over from the first popup version (switch = connect/disconnect)
 updateBadge('off');
-ensureIfEnabled();
+connection.start();

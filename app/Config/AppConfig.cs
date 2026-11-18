@@ -29,9 +29,10 @@ namespace CaptionRelay.Config
 
         public int PollMs { get; set; } = DefaultPollMs;
 
-        public bool Sound { get; set; } = true;
-
         public bool StartLiveCaptions { get; set; } = true;
+
+        /// <summary>Close Live Captions when CaptionRelay exits (menu Exit, closing its taskbar window, extension switch off).</summary>
+        public bool CloseLiveCaptionsOnExit { get; set; } = true;
 
         /// <summary>Indicator position in screen pixels; null = default (bottom-right).</summary>
         public int? IndicatorX { get; set; }

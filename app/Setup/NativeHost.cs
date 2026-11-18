@@ -28,8 +28,15 @@ namespace CaptionRelay.Setup
         public static string ExtensionIdFromOrigin(string origin) =>
             origin.Substring("chrome-extension://".Length).Trim('/');
 
-        /// <summary>Reads one request from <paramref name="input"/>, writes one reply. Returns the process exit code.</summary>
-        public static int Run(Stream input, Stream output, string origin, Func<AppConfig> loadConfig)
+        /// <summary>Added to the command line when the app is started by the extension ("turn on" in the popup).</summary>
+        public const string LaunchedByExtensionArg = "--from-extension";
+
+        /// <summary>
+        /// Reads one request from <paramref name="input"/>, writes one reply. Returns the process exit code.
+        /// Requests: <c>{"type":"getConfig"}</c> (default) → port + token; <c>{"type":"launch"}</c> → starts the app
+        /// via <paramref name="launchApp"/> (returns e.g. "started" / "already running").
+        /// </summary>
+        public static int Run(Stream input, Stream output, string origin, Func<AppConfig> loadConfig, Func<string>? launchApp = null)
         {
             object reply;
             try
@@ -46,6 +53,12 @@ namespace CaptionRelay.Setup
                 {
                     reply = new { type = "error", reason = "extension not allowed" };
                 }
+                else if (RequestType(request) == "launch")
+                {
+                    reply = launchApp == null
+                        ? new { type = "error", reason = "launch not supported" }
+                        : (object)new { type = "launched", status = launchApp() };
+                }
                 else
                 {
                     reply = new { type = "config", port = config.Port, token = config.Token };
@@ -58,6 +71,21 @@ namespace CaptionRelay.Setup
 
             WriteMessage(output, JsonSerializer.Serialize(reply));
             return 0;
+        }
+
+        private static string RequestType(string json)
+        {
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(json);
+                return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("type", out JsonElement t)
+                    ? t.GetString() ?? ""
+                    : "";
+            }
+            catch (JsonException)
+            {
+                return "";
+            }
         }
 
         internal static string? ReadMessage(Stream input)

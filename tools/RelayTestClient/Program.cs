@@ -26,7 +26,7 @@ namespace CaptionRelay.Tools
             string? configPath = Arg(args, "--config");
             if (configPath == null)
             {
-                Console.Error.WriteLine("Usage: RelayTestClient --config path\\config.json [--script sent,noack] [--ackDelayMs 50] [--badToken] [--seconds 60] [--exitAfterSends N]");
+                Console.Error.WriteLine("Usage: RelayTestClient --config path\\config.json [--script sent,noack] [--ackDelayMs 50] [--badToken] [--quit] [--seconds 60] [--exitAfterSends N]");
                 return 2;
             }
 
@@ -37,6 +37,7 @@ namespace CaptionRelay.Tools
             int exitAfter = int.Parse(Arg(args, "--exitAfterSends") ?? "0");
             string origin = Arg(args, "--origin") ?? "chrome-extension://captionrelaytestclient";
             string token = Array.IndexOf(args, "--badToken") >= 0 ? "wrong-token" : config.Token;
+            bool quit = Array.IndexOf(args, "--quit") >= 0;
 
             using var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("Origin", origin);
@@ -84,6 +85,13 @@ namespace CaptionRelay.Tools
                     {
                         case "welcome":
                             Say(clock, $"welcome: {m}");
+                            if (quit)
+                            {
+                                // Like the extension popup's switch turned off.
+                                await SendJson(ws, new { type = "quit" });
+                                Say(clock, "sent quit");
+                            }
+
                             break;
                         case "error":
                             Say(clock, $"error from app: {m}");
