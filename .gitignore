@@ -16,3 +16,6 @@ logs/
 # Course build preview (python docs/course/build.py --html)
 docs/course/course-preview.html
 __pycache__/
+
+# Local AI-assistant notes stay on each contributor's machine
+CLAUDE.md
