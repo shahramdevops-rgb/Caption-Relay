@@ -21,17 +21,35 @@ The app and the protocol are **provider-neutral**: they move text and acks. Whic
 | Direction | Message | Notes |
 |---|---|---|
 | ext → app | `{"type":"hello","token":"…","version":"0.1.0","protocol":1,"client":"CaptionRelay extension 0.1.0","provider":"gemini"}` | first message; `provider` = the chat it delivers to (label in the indicator) |
-| app → ext | `{"type":"welcome","app":"CaptionRelay","version":"0.1.0","protocol":1}` | handshake accepted |
+| app → ext | `{"type":"welcome","app":"CaptionRelay","version":"0.1.0","protocol":1,"sendKey":"Num -","skipKey":"F9","tapKey":"Num +","tapWords":15,"tapPreview":true}` | handshake accepted; `sendKey` / `skipKey` / `tapKey` (optional) are the app's hotkeys as shown to the user (`"None"` = off), `tapWords` the words per tap and `tapPreview` the preview setting, for the extension popup |
 | app → ext | `{"type":"error","reason":"bad token"}` | then the socket is closed |
 | app → ext | `{"type":"ping"}` | every 20 s; keeps the MV3 service worker alive |
 | ext → app | `{"type":"pong"}` | reply to ping |
 | app → ext | `{"type":"send","id":"<guid>","text":"…"}` | text to deliver (prefix already applied) |
+| app → ext | `{"type":"send","id":"<guid>","text":"…","submit":true}` | tap key held: merge the text with what the chat's input holds and send it, even in paste-only mode (like a paste, the app does not use it up) |
+| app → ext | `{"type":"settings","tapPreview":true}` | an app setting changed (the popup's switches show it) |
 | ext → app | `{"type":"ack","id":"<guid>","status":"sent","provider":"gemini"}` | submitted and verified |
 | ext → app | `{"type":"ack","id":"<guid>","status":"queued","provider":"gemini"}` | chat busy; will submit automatically |
 | ext → app | `{"type":"ack","id":"<guid>","status":"error","detail":"input not found","provider":"gemini"}` | failed |
+| ext → app | `{"type":"ack","id":"<guid>","status":"sent","submitted":false,"provider":"gemini"}` | pasted into the chat's input but not submitted (the extension's default; the user sends it). Missing `submitted` = `true`. Submitted text is used up (the next send starts after it); pasted text is not (the next press sends it again and the extension leaves out what the input already ends with) |
+| ext → app | `{"type":"ack","id":"<guid>","status":"sent","submitted":false,"alreadyInInput":true}` | paste only: nothing added, the input already ended with this text |
+| ext → app | `{"type":"ack",…,"submitted":false,"focus":{"left":0,"top":0,"width":1280,"height":1400}}` | paste only, "Jump to the chat after pasting" on: the extension activated the tab, focused the window and the input; the app brings that browser window (bounds in screen DIPs; `true` = unknown) to the front if Windows did not let the browser do it |
 
-| ext → app | `{"type":"result","id":"<guid>","status":"sent","provider":"gemini"}` | final result of a send acked `queued` (submitted after the answer ended); `status` `error` + `detail` if it was given up |
+| ext → app | `{"type":"result","id":"<guid>","status":"sent","provider":"gemini"}` | final result of a send acked `queued` (submitted after the answer ended, or delivered to a new / reloaded tab); `status` `error` + `detail` if it was given up; optional `submitted: false` as in `ack` |
 | ext → app | `{"type":"log","level":"info","text":"…"}` | diagnostics for the app log (page structure, timings — never chat text) |
+| ext → app | `{"type":"setTapPreview","value":false}` | the popup's **Show tap preview** switch; the app saves it and answers with `settings` |
+| ext → app | `{"type":"quit"}` | the user turned CaptionRelay off in the extension popup: the app exits (and closes Live Captions); only after a successful `hello` |
+
+## Native messaging host (`com.captionrelay.host`)
+
+Not part of the WebSocket protocol: the app's exe also answers Chrome native messaging (registered in HKCU by the
+app on every start; only the CaptionRelay extension id may call it). One request per call, 4-byte length + JSON:
+
+| Request | Reply |
+|---|---|
+| `{"type":"getConfig"}` (or no type) | `{"type":"config","port":47321,"token":"…"}` |
+| `{"type":"launch"}` | `{"type":"launched","status":"started" \| "started via explorer" \| "already running"}` — starts the app (popup switch on) |
+| any, extension not in `allowedExtensionIds` / failure | `{"type":"error","reason":"…"}` |
 
 Either side may also send `ping` and get `pong`.
 

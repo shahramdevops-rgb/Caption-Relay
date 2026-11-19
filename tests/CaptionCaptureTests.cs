@@ -73,6 +73,146 @@ namespace CaptionRelay.Tests
             }
         }
 
+        private static string Words(int from, int to)
+        {
+            var sb = new StringBuilder();
+            for (int i = from; i <= to; i++)
+            {
+                sb.Append(sb.Length == 0 ? "" : " ").Append('w').Append(i);
+            }
+
+            return sb.ToString();
+        }
+
+        [Fact]
+        public void TakeLast_TakesOnlyTheLastWords_OlderPendingIsSkipped()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 120));
+            TakeResult r = rig.Capture.TakeLast(50, 3);
+            Assert.Equal(TakeStatus.Ok, r.Status);
+            Assert.Equal(Words(71, 120), r.Text);
+            rig.Capture.Confirm(r.Ticket!, "(pasted, not submitted)");
+            Assert.Equal(TakeStatus.NothingNew, rig.Capture.TakeLast(50, 3).Status);
+            rig.Idle();
+            Assert.Contains("[SKIPPED", rig.Out);
+            Assert.Contains("(older than the last 50 words)", rig.Out);
+            Assert.Contains("(pasted, not submitted)", rig.Out);
+        }
+
+        [Fact]
+        public void TakeLast_MoreWordsThanPending_TakesAllPending()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 30));
+            Assert.Equal(Words(1, 30), rig.Capture.TakeLast(150, 3).Text);
+        }
+
+        [Fact]
+        public void Submitted_IsUsedUp_NextTapOnlyTheNewWords()
+        {
+            // "Press Enter for me": 3 taps (45 words) submitted; 5 more words, one tap (15) → only the 5 new words.
+            var rig = new Rig();
+            rig.Screen(Words(1, 200));
+            TakeResult first = rig.Capture.TakeLast(45, 3);
+            Assert.Equal(Words(156, 200), first.Text);
+            rig.Capture.Confirm(first.Ticket!);
+
+            rig.Screen(Words(1, 205));
+            Assert.Equal(Words(201, 205), rig.Capture.TakeLast(15, 3).Text);
+        }
+
+        [Fact]
+        public void Pasted_IsNotUsedUp_PressingAgainPastesTheSameWordsAgain()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 40));
+            TakeResult tap = rig.Capture.TakeLast(15, 3);
+            Assert.Equal(Words(26, 40), tap.Text);
+            rig.Capture.ConfirmPasted(tap.Ticket!, "(pasted, not submitted)");
+            TakeResult again = rig.Capture.TakeLast(15, 3);
+            Assert.Equal(Words(26, 40), again.Text); // same words again
+            rig.Capture.Restore(again.Ticket!);
+
+            TakeResult all = rig.Capture.Take(3);
+            Assert.Equal(Words(1, 40), all.Text);
+            rig.Capture.ConfirmPasted(all.Ticket!, "(pasted, not submitted)");
+            rig.Screen(Words(1, 42));
+            Assert.Equal(Words(1, 42), rig.Capture.Take(3).Text); // everything since the start, plus the new words
+
+            rig.Idle();
+            Assert.Contains("(pasted, not submitted)", rig.Out);
+            Assert.DoesNotContain("older than", rig.Out); // a pasted tap skips nothing
+        }
+
+        [Fact]
+        public void Pasted_SkipInBetween_StaysSkipped()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 20));
+            TakeResult r = rig.Capture.Take(3);
+            rig.Screen(Words(1, 25));
+            rig.Capture.Skip();
+            rig.Capture.ConfirmPasted(r.Ticket!);
+            Assert.Equal(TakeStatus.NothingNew, rig.Capture.Take(3).Status);
+        }
+
+        [Fact]
+        public void TakeLast_Restore_PutsEverythingBack()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 80));
+            TakeResult r = rig.Capture.TakeLast(50, 3);
+            rig.Capture.Restore(r.Ticket!);
+            Assert.Equal(Words(1, 80), rig.Capture.Take(3).Text);
+        }
+
+        [Fact]
+        public void PreviewLast_ShowsSelectionAndContext_ChangesNothing()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 70));
+            TapPreview p = rig.Capture.PreviewLast(50);
+            Assert.True(p.CaptionsAvailable);
+            Assert.Equal(Words(21, 70), p.Selected);
+            Assert.Equal(50, p.SelectedWords);
+            Assert.Equal(70, p.PendingWords);
+            Assert.EndsWith("w20", p.Context);
+            Assert.Equal(Words(1, 70), rig.Capture.Take(3).Text); // nothing was taken by the preview
+        }
+
+        [Fact]
+        public void PreviewLast_WithTheLiveCaptionsView_ShowsThoseWords_SelectionAmongThem()
+        {
+            var rig = new Rig();
+            rig.Screen(Words(1, 70));
+            string onScreen = "W41, " + Words(42, 70) + "."; // the window shows the last 30 words (case/punctuation differ)
+
+            TapPreview one = rig.Capture.PreviewLast(15, onScreen);
+            Assert.True(one.MatchesLiveCaptions);
+            Assert.Equal(Words(41, 55), one.Context); // the rest of what the window shows, dimmed
+            Assert.Equal(Words(56, 70), one.Selected);
+            Assert.Equal(0, one.AboveWindow);
+
+            TapPreview three = rig.Capture.PreviewLast(45, onScreen);
+            Assert.Equal("", three.Context);
+            Assert.Equal(Words(26, 70), three.Selected);
+            Assert.Equal(15, three.AboveWindow); // w26..w40 are above the window
+
+            TapPreview unknown = rig.Capture.PreviewLast(15, "something else entirely shown here");
+            Assert.False(unknown.MatchesLiveCaptions);
+            Assert.EndsWith("w55", unknown.Context);
+        }
+
+        [Fact]
+        public void FindVisibleStart_LatestOccurrence_TopLineMayHaveChanged()
+        {
+            string full = "so what is your name. so what is your name and where do you live now";
+            Assert.Equal(full.LastIndexOf("so what", StringComparison.Ordinal), CaptionCapture.FindVisibleStart(full, "So what is your name and where"));
+            Assert.Equal(full.IndexOf("where", StringComparison.Ordinal), CaptionCapture.FindVisibleStart(full, "Wear do you live now")); // first word rewritten
+            Assert.Equal(-1, CaptionCapture.FindVisibleStart(full, "nothing like it"));
+        }
+
         [Fact]
         public void TextOnScreenAtStartup_IsNotSent_ButWrittenAsSkipped()
         {

@@ -9,6 +9,9 @@ namespace CaptionRelay.UI
     {
         public const string DefaultProvider = "Gemini";
 
+        /// <summary>Default distance of the indicator from the left edge of the screen, in pixels.</summary>
+        public const int DefaultLeftOffset = 300;
+
         /// <summary>"gemini" → "Gemini", "chatgpt" → "ChatGPT"; unknown names are capitalized; none → last known or Gemini.</summary>
         public static string ProviderLabel(string? provider, string? lastKnown = null)
         {
@@ -30,23 +33,20 @@ namespace CaptionRelay.UI
             return char.ToUpper(p[0], CultureInfo.InvariantCulture) + p.Substring(1);
         }
 
-        public static string Words(int count) => count == 1 ? "1 word pending" : $"{count} words pending";
-
-        /// <summary>"queued · 12 words pending" while a send waits for the chat to finish answering.</summary>
-        public static string WordsAndQueue(int pendingWords, int queued) =>
-            queued > 0 ? $"queued · {Words(pendingWords)}" : Words(pendingWords);
+        public static string Words(int count) => count == 1 ? "1 word" : $"{count} words";
 
         /// <summary>The line read by screen readers / UI Automation (the window title).</summary>
-        public static string StatusLine(bool captionsOk, bool extensionOk, string provider, int pendingWords, string? flash, int queued = 0)
+        public static string StatusLine(bool captionsOk, bool extensionOk, string provider, string? flash, int queued = 0)
         {
             string c = captionsOk ? "Captions on" : "Captions off";
             string e = extensionOk ? provider + " connected" : provider + " not connected";
-            return $"{c} | {e} | {flash ?? WordsAndQueue(pendingWords, queued)}";
+            string? last = flash ?? (queued > 0 ? "queued" : null);
+            return last == null ? $"{c} | {e}" : $"{c} | {e} | {last}";
         }
 
-        public static string Tooltip(bool captionsOk, bool extensionOk, string provider, int pendingWords, string? error)
+        public static string Tooltip(bool captionsOk, bool extensionOk, string provider, string? error)
         {
-            string text = $"CaptionRelay - captions {(captionsOk ? "on" : "off")}, {provider} {(extensionOk ? "connected" : "not connected")}, {Words(pendingWords)}";
+            string text = $"CaptionRelay - captions {(captionsOk ? "on" : "off")}, {provider} {(extensionOk ? "connected" : "not connected")}";
             if (!string.IsNullOrEmpty(error))
             {
                 text += " - " + error;
@@ -56,10 +56,10 @@ namespace CaptionRelay.UI
         }
 
         /// <summary>
-        /// Where the pill goes: the saved spot if at least half of it is on some screen, otherwise bottom-right of the
-        /// primary working area.
+        /// Where the pill goes: the saved spot if at least half of it is on some screen, otherwise at the bottom of the
+        /// primary working area, <paramref name="left"/> px from its left edge and <paramref name="margin"/> above its bottom.
         /// </summary>
-        public static Point Place(Point? saved, Size pill, Rectangle[] workingAreas, Rectangle primary, int margin)
+        public static Point Place(Point? saved, Size pill, Rectangle[] workingAreas, Rectangle primary, int margin, int left = DefaultLeftOffset)
         {
             if (saved is Point s)
             {
@@ -74,7 +74,7 @@ namespace CaptionRelay.UI
                 }
             }
 
-            return new Point(primary.Right - pill.Width - margin, primary.Bottom - pill.Height - margin);
+            return new Point(primary.Left + left, primary.Bottom - pill.Height - margin);
         }
     }
 }

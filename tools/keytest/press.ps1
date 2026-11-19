@@ -1,9 +1,17 @@
 # Runs steps inside a temporary foreground test window (keys reach only that window):
 #   say:<text>   speak with System.Speech (for Live Captions)
-#   send         Ctrl+Shift press/release
+#   send         numpad - (paste everything)
+#   tap          numpad + (tap: the last words)
 #   skip         F9
+#   ctrlshift    Ctrl+Shift press/release (the old send key)
+#   key:<name>   any key from the table below (e.g. key:F6, key:NumPlus)
+#   hold:<name>:<ms>  hold a key down that long, then release (e.g. hold:NumPlus:700)
+#   down:<name> / up:<name>  press or release a key (e.g. to take a screenshot while it is held)
 #   wait:<ms>    pause
+#   shot:<file>  screenshot of the primary screen (PNG)
 #   check        print whether the test window still has the focus
+#   seen         print the keys that reached the test window (CaptionRelay's own keys should not)
+#   fg           print which program's window is in front now
 # Windows PowerShell 5.1, ASCII only.
 param([Parameter(Mandatory = $true)][string]$Steps, [int]$GapMs = 300)
 
@@ -37,7 +45,12 @@ public static class KT {
 }
 "@
 
-$VK = @{ LCtrl = 0xA2; RCtrl = 0xA3; LShift = 0xA0; T = 0x54; F9 = 0x78; F24 = 0x87 }
+Add-Type @"
+using System; using System.Runtime.InteropServices;
+public static class KTP { [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid); }
+"@
+$VK = @{ LCtrl = 0xA2; RCtrl = 0xA3; LShift = 0xA0; T = 0x54; F6 = 0x75; F7 = 0x76; F8 = 0x77; F9 = 0x78; F24 = 0x87;
+         NumPlus = 0x6B; NumMinus = 0x6D; MainPlus = 0xBB; MainMinus = 0xBD }
 $KEYUP = 2; $EXT = 1
 
 $form = New-Object System.Windows.Forms.Form
@@ -48,6 +61,8 @@ $form.StartPosition = 'CenterScreen'
 $box = New-Object System.Windows.Forms.TextBox
 $box.Dock = 'Fill'; $box.Multiline = $true
 $form.Controls.Add($box)
+$script:seenKeys = New-Object System.Collections.Generic.List[string]
+$box.Add_KeyDown({ param($s, $e) $script:seenKeys.Add([string]$e.KeyCode) })
 
 $before = [KT]::GetForegroundWindow()
 $mouse = New-Object KT+POINT
@@ -87,8 +102,26 @@ try {
         $kind, $arg = $step.Split(':', 2)
         switch ($kind) {
             'say'  { Step "say: $arg" { $synth.Speak($arg) } }
-            'send' { Step 'send (Ctrl+Shift)' { Down LCtrl; Down LShift; Up LShift; Up LCtrl } }
+            'send' { Step 'send (numpad -)' { Tap NumMinus } }
+            'tap'  { Step 'tap (numpad +)' { Tap NumPlus } }
+            'hold' { $k, $ms = $arg.Split(':'); Step "hold $k $ms ms" { Down $k; Start-Sleep -Milliseconds ([int]$ms); Up $k } }
+            'down' { Step "down $arg" { Down $arg } }
+            'up'   { Step "up $arg" { Up $arg } }
             'skip' { Step 'skip (F9)' { Tap F9 } }
+            'ctrlshift' { Step 'Ctrl+Shift' { Down LCtrl; Down LShift; Up LShift; Up LCtrl } }
+            'key'  { Step "key $arg" { Tap $arg } }
+            'shot' {
+                Add-Type -AssemblyName System.Drawing
+                $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+                $g = [System.Drawing.Graphics]::FromImage($bmp)
+                $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+                $bmp.Save($arg, [System.Drawing.Imaging.ImageFormat]::Png)
+                $g.Dispose(); $bmp.Dispose()
+                (Get-Date).ToString('HH:mm:ss.fff') + "  screenshot $arg"
+            }
+            'fg' { [System.Windows.Forms.Application]::DoEvents(); $h = [KT]::GetForegroundWindow(); $fp = 0; [void][KTP]::GetWindowThreadProcessId($h, [ref]$fp); (Get-Date).ToString('HH:mm:ss.fff') + '  in front: ' + (Get-Process -Id $fp -ErrorAction SilentlyContinue).ProcessName }
+            'seen' { [System.Windows.Forms.Application]::DoEvents(); (Get-Date).ToString('HH:mm:ss.fff') + '  keys that reached the test window: ' + ($script:seenKeys -join ',') }
             'ctrlshiftt' { Step 'Ctrl+Shift+T (must not send)' { Down LCtrl; Down LShift; Tap T; Up LShift; Up LCtrl } }
             'wait' { Start-Sleep -Milliseconds ([int]$arg) }
             'check' { [System.Windows.Forms.Application]::DoEvents(); (Get-Date).ToString('HH:mm:ss.fff') + '  focus still on the test window: ' + ([KT]::GetForegroundWindow() -eq $form.Handle) }

@@ -20,7 +20,7 @@ class FakeSocket {
   drop() { this.readyState = 3; this.onclose?.(); }
 }
 
-function rig({ token = 'secret', port = 47321, onSend } = {}) {
+function rig({ token = 'secret', port = 47321, onSend, onAuthError } = {}) {
   FakeSocket.all = [];
   const timers = [];
   const states = [];
@@ -30,6 +30,7 @@ function rig({ token = 'secret', port = 47321, onSend } = {}) {
     getSettings: async () => settings,
     onSend: onSend ?? (async () => ({ status: 'sent', provider: 'gemini' })),
     onState: (s) => states.push(s),
+    onAuthError,
     version: '0.1.0',
     setTimeoutFn: (f, ms) => { const t = { f, ms, cancelled: false }; timers.push(t); return t; },
     clearTimeoutFn: (t) => { t.cancelled = true; },
@@ -86,6 +87,38 @@ test('send is delivered by the provider and acked with the same id', async () =>
   await tick();
   assert.deepEqual(seen, [['What is a delegate?', 'abc']]);
   assert.deepEqual(r.socket().sent.at(-1), { type: 'ack', id: 'abc', status: 'queued', provider: 'gemini' });
+});
+
+test('send with submit: true (tap key held) reaches the provider as opts.submit', async () => {
+  const seen = [];
+  const r = rig({ onSend: async (text, id, opts) => { seen.push(opts); return { status: 'sent', provider: 'gemini' }; } });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'h1', text: 'paste and send', submit: true });
+  r.socket().receive({ type: 'send', id: 'h2', text: 'paste only' });
+  await tick();
+  assert.deepEqual(seen, [{ submit: true }, { submit: false }]);
+});
+
+test('the ack carries the focus request (window bounds) from the provider', async () => {
+  const r = rig({ onSend: async () => ({ status: 'sent', submitted: false, provider: 'gemini', focus: { left: 0, top: 0, width: 1280, height: 1400 } }) });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'f1', text: 'paste me' });
+  await tick();
+  assert.deepEqual(r.socket().sent.at(-1).focus, { left: 0, top: 0, width: 1280, height: 1400 });
+});
+
+test('a paste-only ack carries submitted: false', async () => {
+  const r = rig({ onSend: async () => ({ status: 'sent', submitted: false, provider: 'gemini' }) });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'send', id: 'p1', text: 'paste me' });
+  await tick();
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'ack', id: 'p1', status: 'sent', submitted: false, provider: 'gemini' });
 });
 
 test('a provider exception becomes an error ack', async () => {
@@ -203,4 +236,44 @@ test('unknown messages and invalid JSON are ignored', async () => {
   r.socket().receive({ type: 'something-new' });
   r.socket().onmessage({ data: 'not json' });
   assert.equal(r.socket().sent.length, 1); // only the hello
+});
+
+test('a refused token calls onAuthError (so the extension can fetch a fresh one); other errors do not', async () => {
+  let calls = 0;
+  const r = rig({ onAuthError: () => calls++ });
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'error', reason: 'protocol' });
+  assert.equal(calls, 0);
+  r.socket().receive({ type: 'error', reason: 'bad token' });
+  assert.equal(calls, 1);
+  assert.match(r.conn.status().lastError, /Wrong token/);
+});
+
+test('status() carries the app hotkeys from welcome (null when an older app does not send them)', async () => {
+  const r = rig();
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  assert.equal(r.conn.status().app, null);
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1, sendKey: 'Num -', skipKey: 'F9', tapKey: 'Num +', tapWords: 15, tapPreview: true });
+  assert.deepEqual(r.conn.status().app, { name: 'CaptionRelay', version: '0.1.0', sendKey: 'Num -', skipKey: 'F9', tapKey: 'Num +', tapWords: 15, tapPreview: true });
+  r.socket().receive({ type: 'settings', tapPreview: false });
+  assert.equal(r.conn.status().app.tapPreview, false);
+  assert.equal(r.conn.sendSetTapPreview(true), true);
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'setTapPreview', value: true });
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.0.9', protocol: 1 });
+  assert.equal(r.conn.status().app.sendKey, null);
+});
+
+test('sendQuit sends {type:"quit"} only while connected', async () => {
+  const r = rig();
+  assert.equal(r.conn.sendQuit(), false);
+  r.conn.start();
+  await tick();
+  r.socket().open();
+  r.socket().receive({ type: 'welcome', app: 'CaptionRelay', version: '0.1.0', protocol: 1 });
+  assert.equal(r.conn.sendQuit(), true);
+  assert.deepEqual(r.socket().sent.at(-1), { type: 'quit' });
 });

@@ -14,7 +14,9 @@ namespace CaptionRelay.Tools
     /// (never printed).
     ///
     /// Usage: RelayTestClient --config path\config.json [--script sent,noack,queued,error] [--ackDelayMs 50]
-    ///                        [--origin chrome-extension://test] [--badToken] [--seconds 60] [--exitAfterSends N]
+    ///                        [--origin chrome-extension://test] [--badToken] [--pasteOnly] [--seconds 60] [--exitAfterSends N]
+    /// --pasteOnly answers "sent" acks like the extension's default paste mode (submitted: false).
+    /// --focus also asks the app to bring the chat window forward (focus: true), like "Jump to the chat after pasting".
     /// Each incoming "send" is answered with the next script entry (the last one repeats):
     ///   sent | queued | error | noack
     /// </summary>
@@ -26,7 +28,7 @@ namespace CaptionRelay.Tools
             string? configPath = Arg(args, "--config");
             if (configPath == null)
             {
-                Console.Error.WriteLine("Usage: RelayTestClient --config path\\config.json [--script sent,noack] [--ackDelayMs 50] [--badToken] [--seconds 60] [--exitAfterSends N]");
+                Console.Error.WriteLine("Usage: RelayTestClient --config path\\config.json [--script sent,noack] [--ackDelayMs 50] [--badToken] [--quit] [--seconds 60] [--exitAfterSends N]");
                 return 2;
             }
 
@@ -37,6 +39,9 @@ namespace CaptionRelay.Tools
             int exitAfter = int.Parse(Arg(args, "--exitAfterSends") ?? "0");
             string origin = Arg(args, "--origin") ?? "chrome-extension://captionrelaytestclient";
             string token = Array.IndexOf(args, "--badToken") >= 0 ? "wrong-token" : config.Token;
+            bool quit = Array.IndexOf(args, "--quit") >= 0;
+            bool pasteOnly = Array.IndexOf(args, "--pasteOnly") >= 0;
+            bool focus = Array.IndexOf(args, "--focus") >= 0;
 
             using var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("Origin", origin);
@@ -84,6 +89,13 @@ namespace CaptionRelay.Tools
                     {
                         case "welcome":
                             Say(clock, $"welcome: {m}");
+                            if (quit)
+                            {
+                                // Like the extension popup's switch turned off.
+                                await SendJson(ws, new { type = "quit" });
+                                Say(clock, "sent quit");
+                            }
+
                             break;
                         case "error":
                             Say(clock, $"error from app: {m}");
@@ -97,11 +109,14 @@ namespace CaptionRelay.Tools
                             string text = m.GetProperty("text").GetString() ?? "";
                             string action = script[Math.Min(sends, script.Length - 1)];
                             sends++;
-                            Say(clock, $"send #{sends}: {text.Length} chars -> {action} | {text}");
+                            Say(clock, $"send #{sends}: {text.Length} chars{(m.TryGetProperty("submit", out JsonElement s) && s.ValueKind == JsonValueKind.True ? " [paste + SEND]" : "")} -> {action} | {text}");
                             if (action != "noack")
                             {
                                 await Task.Delay(ackDelay);
-                                await SendJson(ws, new { type = "ack", id, status = action, detail = action == "error" ? "simulated failure" : null, provider = "test-client" });
+                                bool forced = m.TryGetProperty("submit", out JsonElement f) && f.ValueKind == JsonValueKind.True;
+                                bool? submitted = pasteOnly && action == "sent" && !forced ? false : null;
+                                bool? focusChat = focus && submitted == false ? true : null;
+                                await SendJson(ws, new { type = "ack", id, status = action, detail = action == "error" ? "simulated failure" : null, provider = "test-client", submitted, focus = focusChat });
                             }
 
                             if (exitAfter > 0 && sends >= exitAfter)

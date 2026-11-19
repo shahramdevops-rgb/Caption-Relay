@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CaptionRelay.Captions;
@@ -29,9 +30,12 @@ namespace CaptionRelay.Tests
 
             public List<string> Sent { get; } = new List<string>();
 
-            public Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default)
+            public List<bool> Submits { get; } = new List<bool>();
+
+            public Task<SendOutcome> SendAsync(string text, CancellationToken cancellationToken = default, bool submit = false)
             {
                 Sent.Add(text);
+                Submits.Add(submit);
                 return Task.FromResult(Next);
             }
         }
@@ -69,6 +73,134 @@ namespace CaptionRelay.Tests
                 Tick += advanceMs;
                 return Controller.SendAsync();
             }
+        }
+
+        private static string Words(int from, int to) => string.Join(" ", System.Linq.Enumerable.Range(from, to - from + 1).Select(i => "w" + i));
+
+        [Fact]
+        public async Task Taps_SelectMoreWordsEach_DeliveredWhenTheTapsStop()
+        {
+            var rig = new Rig();
+            var timer = new List<TaskCompletionSource>();
+            rig.Controller.TapWords = 50;
+            rig.Controller.Delay = _ =>
+            {
+                var t = new TaskCompletionSource();
+                timer.Add(t);
+                return t.Task;
+            };
+            int changes = 0;
+            rig.Controller.TapChanged += () => changes++;
+            rig.Screen(Words(1, 200));
+
+            // Each press starts a hold timer (timer[even]); each short release starts the paste timer (timer[odd]).
+            for (int i = 0; i < 3; i++)
+            {
+                rig.Controller.OnTapPressed();
+                rig.Controller.OnTapReleased(60);
+            }
+
+            Assert.Equal(3, rig.Controller.Taps);
+            Assert.Equal(150, rig.Controller.TapWordLimit);
+            Assert.Empty(rig.Sender.Sent);
+            Assert.Equal("Info:Tap \u00d73 \u00b7 150 words", rig.Feedback[^1]);
+
+            timer[1].SetResult(); // an older paste timer: a newer tap restarted the wait
+            timer[4].SetResult(); // a hold timer after the key was released: nothing
+            await Task.Yield();
+            Assert.Empty(rig.Sender.Sent);
+            Assert.False(rig.Controller.SendOnRelease);
+
+            timer[5].SetResult();
+            await WaitFor(() => rig.Sender.Sent.Count == 1);
+            Assert.Equal(Words(51, 200), rig.Sender.Sent[0]);
+            Assert.False(rig.Sender.Submits[0]);
+            Assert.Equal(0, rig.Controller.Taps);
+            Assert.Equal(4, changes); // 3 taps + delivered
+
+            // 5 new words, one tap: only the new words, nothing repeated.
+            rig.Screen(Words(1, 205));
+            rig.Controller.OnTapPressed();
+            await rig.Controller.CommitTapsAsync();
+            Assert.Equal(Words(201, 205), rig.Sender.Sent[1]);
+        }
+
+        [Fact]
+        public async Task TapKeyHeld_PastesAndSends_OnRelease_NothingUsedUp()
+        {
+            var rig = new Rig();
+            var timer = new List<TaskCompletionSource>();
+            rig.Controller.TapWords = 15;
+            rig.Controller.Delay = _ =>
+            {
+                var t = new TaskCompletionSource();
+                timer.Add(t);
+                return t.Task;
+            };
+            rig.Screen(Words(1, 40));
+
+            rig.Controller.OnTapPressed();
+            rig.Controller.OnTapReleased(60);
+            rig.Controller.OnTapPressed(); // second press, held
+            timer[2].SetResult(); // hold timer: still down → armed
+            await WaitFor(() => rig.Controller.SendOnRelease);
+            Assert.Equal("Info:Release: paste + send", rig.Feedback[^1]);
+            Assert.Empty(rig.Sender.Sent); // nothing while the key is held
+
+            rig.Controller.OnTapReleased(650);
+            await WaitFor(() => rig.Sender.Sent.Count == 1);
+            Assert.Equal(Words(11, 40), rig.Sender.Sent[0]); // 2 presses = 30 words
+            Assert.True(rig.Sender.Submits[0]);
+            Assert.Equal("Success:Sent \u2713", rig.Feedback[^1]);
+            Assert.False(rig.Controller.SendOnRelease);
+
+            // Like a paste, nothing is used up: the next tap takes the same words again.
+            rig.Controller.OnTapPressed();
+            await rig.Controller.CommitTapsAsync();
+            Assert.Equal(Words(26, 40), rig.Sender.Sent[1]);
+            Assert.False(rig.Sender.Submits[1]);
+        }
+
+        [Fact]
+        public async Task TapKeyHeldLong_ReleaseSendsEvenIfTheHoldTimerWasLate()
+        {
+            var rig = new Rig();
+            rig.Controller.Delay = _ => new TaskCompletionSource().Task; // timers never fire
+            rig.Screen(Words(1, 10));
+            rig.Controller.OnTapPressed();
+            rig.Controller.OnTapReleased(rig.Controller.TapHoldSendMs + 1);
+            await WaitFor(() => rig.Sender.Sent.Count == 1);
+            Assert.True(rig.Sender.Submits[0]);
+        }
+
+        [Fact]
+        public async Task SendOrSkipKey_CancelsTheTapSelection()
+        {
+            var rig = new Rig();
+            rig.Controller.Delay = _ => new TaskCompletionSource().Task; // never fires
+            rig.Screen(Words(1, 80));
+            rig.Controller.OnTapPressed();
+            rig.Controller.OnSkipPressed();
+            Assert.Equal(0, rig.Controller.Taps);
+            await rig.Controller.CommitTapsAsync();
+            Assert.Empty(rig.Sender.Sent);
+
+            rig.Screen(Words(1, 90));
+            rig.Controller.OnTapPressed();
+            rig.Controller.OnSendPressed(); // the send key: everything since the skip, as always
+            await WaitFor(() => rig.Sender.Sent.Count == 1);
+            Assert.Equal(Words(81, 90), rig.Sender.Sent[0]);
+            Assert.Equal(0, rig.Controller.Taps);
+        }
+
+        private static async Task WaitFor(Func<bool> cond)
+        {
+            for (int i = 0; i < 200 && !cond(); i++)
+            {
+                await Task.Delay(10);
+            }
+
+            Assert.True(cond());
         }
 
         [Fact]
@@ -141,6 +273,58 @@ namespace CaptionRelay.Tests
             Assert.Equal("Info:Queued", rig.Feedback[^1]);
             await rig.Send();
             Assert.Equal("Info:Nothing new", rig.Feedback[^1]);
+        }
+
+        [Fact]
+        public async Task PastedOnly_ConfirmedAndShownAsPasted()
+        {
+            var rig = new Rig();
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, "pasted with execCommand, not submitted", "gemini", submitted: false);
+            rig.Screen("what is dependency injection");
+            await rig.Send();
+            Assert.Equal("Success:Pasted ✓", rig.Feedback[^1]);
+
+            // Pasted only: nothing is used up, pressing again pastes the same words again (plus new ones).
+            rig.Screen("what is dependency injection and why");
+            await rig.Send();
+            Assert.Equal(new[] { "what is dependency injection", "what is dependency injection and why" }, rig.Sender.Sent);
+
+            // The extension found it all in the input already.
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, "already in the input", "gemini", submitted: false, alreadyInInput: true);
+            await rig.Send();
+            Assert.Equal("Info:Already in the input", rig.Feedback[^1]);
+        }
+
+        [Fact]
+        public async Task Pasted_WithFocus_AsksToBringTheChatForward_SentDoesNot()
+        {
+            var rig = new Rig();
+            var requests = new List<System.Drawing.Rectangle?>();
+            rig.Controller.ChatFocusRequested += b => requests.Add(b);
+            rig.Screen("tell me about yourself");
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini", submitted: false, focusChat: true, chatBounds: new System.Drawing.Rectangle(0, 0, 1280, 1400));
+            await rig.Send();
+            Assert.Equal(new System.Drawing.Rectangle?[] { new System.Drawing.Rectangle(0, 0, 1280, 1400) }, requests);
+
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini", submitted: false); // focus turned off
+            await rig.Send();
+            rig.Sender.Next = new SendOutcome(SendStatus.Sent, null, "gemini"); // submitted
+            rig.Screen("tell me about yourself please");
+            await rig.Send();
+            Assert.Single(requests);
+        }
+
+        [Fact]
+        public async Task Queued_ThenResultPastedOnly_ShownAsPasted()
+        {
+            var rig = new Rig();
+            rig.Sender.Next = new SendOutcome(SendStatus.Queued, id: "p1");
+            rig.Screen("opened a new tab for this");
+            await rig.Send();
+            rig.Sender.RaiseResult("p1", new SendOutcome(SendStatus.Sent, null, "gemini", "p1", submitted: false));
+            Assert.Equal(0, rig.Controller.QueuedCount);
+            Assert.Equal("Success:Pasted ✓", rig.Feedback[^1]);
         }
 
         [Fact]

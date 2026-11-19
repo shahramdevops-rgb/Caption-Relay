@@ -30,6 +30,9 @@ node --test tests/extension/*.test.mjs
   (file://) and check that every result is green.
 - Run the app from `app/bin/Debug/...` or publish it with
   `dotnet publish app/CaptionRelay.csproj -c Release -o publish`.
+- The single self-contained exe for users: `powershell -ExecutionPolicy Bypass -File build-exe.ps1`
+  → `build\CaptionRelay.exe` (the `extension` folder is embedded in it). Every build replaces that file; rebuild it
+  after each code change so it is always current.
 - Load the extension with `chrome://extensions` → Developer mode → Load unpacked → the `extension` folder.
 
 ## How the code is organised
@@ -40,7 +43,7 @@ node --test tests/extension/*.test.mjs
 | `app/Input` | Low-level keyboard hook and the hotkey state machine |
 | `app/Sending` | `SendController` and the `IMessageSender` abstraction |
 | `app/Relay` | Loopback WebSocket server (Kestrel) |
-| `app/UI` | Tray icon, indicator pill (never takes focus), sounds |
+| `app/UI` | Tray icon, indicator pill (never takes focus), tap preview, taskbar window, bringing the chat window forward after a paste |
 | `app/Config`, `app/Infrastructure` | `config.json`, logging, single instance, startup registration |
 | `extension/lib` | WebSocket connection (no `chrome.*` calls, tested in Node) |
 | `extension/providers` | One folder per chat (`gemini`, `chatgpt`, `claude`) plus the shared `webchat.js` |
@@ -51,6 +54,8 @@ node --test tests/extension/*.test.mjs
 1. **Never lose text.** Duplicating a few words is acceptable, dropping any is not. Keep the ticket
    confirm/restore flow intact.
 2. **Never take focus.** Nothing may activate a window or send keystrokes to another app.
+   The one exception is on purpose and can be switched off: after a paste, "Jump to the chat after pasting" (on by
+   default) focuses the chat's input and brings its browser window forward, so the user's Enter sends the text.
 3. **The app and the protocol stay provider-neutral.** A new chat goes into `extension/providers/<id>/` and the
    registry; new protocol features are new optional message types, never changes to existing ones.
 4. **Never log conversation text.** Logs contain lengths and diagnostics only; the token only as a fingerprint.

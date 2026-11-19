@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CaptionRelay.Captions;
 using CaptionRelay.Config;
@@ -12,8 +13,9 @@ using CaptionRelay.Sending;
 namespace CaptionRelay.UI
 {
     /// <summary>
-    /// The app's UI: tray icon + menu, the indicator pill, sounds. Polls capture/relay status every 250 ms on the UI
-    /// thread (no cross-thread UI calls) and shows SendController feedback.
+    /// The app's UI: taskbar window, tray icon + menu, the indicator pill. Polls capture/relay status every 250 ms on
+    /// the UI thread (no cross-thread UI calls) and shows SendController feedback. Every way of exiting (menu Exit,
+    /// closing the taskbar window, the extension's switch) goes through <see cref="ExitThreadCore"/>.
     /// </summary>
     public sealed class TrayContext : ApplicationContext
     {
@@ -25,44 +27,60 @@ namespace CaptionRelay.UI
         private readonly NotifyIcon _tray;
         private readonly ContextMenuStrip _menu;
         private readonly ToolStripMenuItem _showItem;
-        private readonly ToolStripMenuItem _soundItem;
         private readonly ToolStripMenuItem _hideLcItem;
         private readonly ToolStripMenuItem _startupItem;
+        private readonly ToolStripMenuItem _tapPreviewItem;
+        private readonly TapPreviewForm _tapPreview;
         private readonly StartupRegistration _startup = new StartupRegistration();
         private readonly IndicatorForm _indicator;
-        private readonly Sounds _sounds = new Sounds();
+        private readonly MainForm _main;
         private readonly Timer _timer = new Timer { Interval = 250 };
         private readonly Icon _iconOk = AppIcons.Create(true);
         private readonly Icon _iconBad = AppIcons.Create(false);
         private readonly SendController _controller;
+        private readonly string _sendKeyLabel;
         private string? _lastProvider;
         private IntPtr _previousForeground;
         private bool? _lastAllOk;
+        private SetupForm? _setup;
+        private bool _exiting;
 
-        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow)
+        // What the Live Captions window shows, read in the background while tapping (UI Automation, cross-process).
+        private string? _visibleText;
+        private bool _visibleReading;
+        private long _visibleReadAt = long.MinValue / 2;
+
+        public TrayContext(AppConfig config, CaptionCapture capture, RelayServer relay, SendController controller, CaptionsReader reader, LiveCaptionsWindow liveCaptionsWindow, string sendKeyLabel, string skipKeyLabel, string tapKeyLabel)
         {
             _config = config;
+            _sendKeyLabel = sendKeyLabel;
             _capture = capture;
             _relay = relay;
             _reader = reader;
             _liveCaptionsWindow = liveCaptionsWindow;
-            _sounds.Enabled = config.Sound;
 
             _showItem = new ToolStripMenuItem("Hide indicator", null, (_, _) => SetIndicatorVisible(!_indicator!.Visible));
-            _soundItem = new ToolStripMenuItem("Sound", null, (_, _) => ToggleSound()) { Checked = config.Sound };
             _hideLcItem = new ToolStripMenuItem("Hide Live Captions window", null, (_, _) => ToggleHideLiveCaptions()) { Checked = config.HideLiveCaptions };
             _menu = new ContextMenuStrip();
             _menu.Items.Add(_showItem);
-            _menu.Items.Add(_soundItem);
             _menu.Items.Add(_hideLcItem);
+            _menu.Items.Add(_tapPreviewItem = new ToolStripMenuItem("Show tap preview", null, (_, _) => SetTapPreview(!_config.TapPreview)) { Checked = config.TapPreview });
             _menu.Items.Add(_startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartWithWindows()) { Checked = config.StartWithWindows });
             _menu.Items.Add(new ToolStripSeparator());
+            _menu.Items.Add(new ToolStripMenuItem("Set up browser extension…", null, (_, _) => ShowSetup()));
             _menu.Items.Add(new ToolStripMenuItem("Open sessions folder", null, (_, _) => OpenSessions()));
             _menu.Items.Add(new ToolStripMenuItem("Copy token (for the extension)", null, (_, _) => CopyToken()));
             _menu.Items.Add(new ToolStripMenuItem("Open config", null, (_, _) => OpenConfig()));
             _menu.Items.Add(new ToolStripMenuItem("Reconnect Live Captions", null, (_, _) => ReconnectLiveCaptions()));
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
+
+            _main = new MainForm(sendKeyLabel, skipKeyLabel, tapKeyLabel, controller.TapWords, config.TapPreview);
+            _main.TapPreviewToggled += SetTapPreview;
+            _main.SetupRequested += ShowSetup;
+            _main.SessionsRequested += OpenSessions;
+            _main.ExitRequested += ExitThread;
+            _main.ShowMinimizedOnTaskbar();
 
             // A menu takes the focus while open; give it back to the app the user was in when it closes.
             _menu.Opening += (_, _) => RememberForeground();
@@ -102,8 +120,12 @@ namespace CaptionRelay.UI
 
             UpdateShowItem();
 
+            _tapPreview = new TapPreviewForm(config.TapPreviewOpacity);
+
             _controller = controller;
             controller.Feedback += OnFeedback;
+            controller.TapChanged += UpdateTapPreview;
+            controller.ChatFocusRequested += OnChatFocusRequested;
             _timer.Tick += (_, _) => UpdateStatus();
             _timer.Start();
             UpdateStatus();
@@ -114,11 +136,64 @@ namespace CaptionRelay.UI
             }
 
             Log.Info($"UI ready (indicator {(config.IndicatorVisible ? "shown" : "hidden")} at {_indicator.PillLocation.X},{_indicator.PillLocation.Y}).");
+
+            if (!config.ExtensionSetUp)
+            {
+                // First run: give an already installed extension a moment to connect before showing the guide.
+                var firstRun = new Timer { Interval = 3000 };
+                firstRun.Tick += (_, _) =>
+                {
+                    firstRun.Dispose();
+                    if (!_config.ExtensionSetUp && !_relay.IsConnected)
+                    {
+                        ShowSetup();
+                    }
+                };
+                firstRun.Start();
+            }
+        }
+
+        private void ShowSetup()
+        {
+            if (_setup != null && !_setup.IsDisposed)
+            {
+                _setup.WindowState = FormWindowState.Normal;
+                _setup.Activate();
+                return;
+            }
+
+            Log.Info("Showing the browser extension setup window.");
+            _setup = new SetupForm(AppPaths.ExtensionDir, () => _relay.IsConnected, _sendKeyLabel);
+            _setup.Connected += MarkExtensionSetUp;
+            _setup.FormClosed += (_, _) => _setup = null;
+            _setup.Show();
+        }
+
+        private void MarkExtensionSetUp()
+        {
+            if (_config.ExtensionSetUp)
+            {
+                return;
+            }
+
+            _config.ExtensionSetUp = true;
+            SaveConfig();
+            Log.Info("Browser extension set up (first connection).");
         }
 
         protected override void ExitThreadCore()
         {
-            Log.Info("Exit requested from the menu.");
+            if (_exiting)
+            {
+                return;
+            }
+
+            _exiting = true;
+            Log.Info("Exit requested.");
+            _timer.Stop();
+            _tapPreview.Hide();
+            _setup?.Close();
+            _main.CloseForExit();
             base.ExitThreadCore();
         }
 
@@ -127,11 +202,13 @@ namespace CaptionRelay.UI
             if (disposing)
             {
                 _timer.Dispose();
+                _setup?.Dispose();
                 _tray.Visible = false;
                 _tray.Dispose();
                 _menu.Dispose();
                 _indicator.Dispose();
-                _sounds.Dispose();
+                _tapPreview.Dispose();
+                _main.Dispose();
                 _iconOk.Dispose();
                 _iconBad.Dispose();
             }
@@ -197,7 +274,18 @@ namespace CaptionRelay.UI
                 bool connected = _relay.IsConnected;
                 string provider = Provider();
                 _indicator.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, s.PendingTail, _controller.QueuedCount);
-                _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, s.PendingWords, _relay.StartError);
+                _main.SetStatus(s.CaptionsAvailable, connected, provider, s.PendingWords, _controller.QueuedCount);
+                _tray.Text = IndicatorText.Tooltip(s.CaptionsAvailable, connected, provider, _relay.StartError);
+
+                if (connected && !_config.ExtensionSetUp)
+                {
+                    MarkExtensionSetUp();
+                }
+
+                if (_controller.Taps > 0)
+                {
+                    UpdateTapPreview(); // new speech while tapping changes the selection
+                }
 
                 bool allOk = s.CaptionsAvailable && connected;
                 if (allOk != _lastAllOk)
@@ -215,8 +303,125 @@ namespace CaptionRelay.UI
         private void OnFeedback(FeedbackKind kind, string message)
         {
             _indicator.Flash(kind, message);
-            _sounds.Play(kind, message);
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// After a paste the extension focuses the chat (tab, window, input). A moment later, if Windows did not let
+        /// the browser come to the front, CaptionRelay brings that window forward itself.
+        /// </summary>
+        private void OnChatFocusRequested(Rectangle? bounds)
+        {
+            var wait = new Timer { Interval = 200 };
+            wait.Tick += (_, _) =>
+            {
+                wait.Dispose();
+                if (_exiting)
+                {
+                    return;
+                }
+
+                try
+                {
+                    Log.Info($"Chat window focus: {ChatWindow.Activate(bounds)}.");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Bringing the chat window to the front failed", ex);
+                }
+            };
+            wait.Start();
+        }
+
+        /// <summary>Shows the tap selection above the indicator while tapping (if enabled); hides it otherwise.</summary>
+        private void UpdateTapPreview()
+        {
+            try
+            {
+                int taps = _controller.Taps;
+                if (taps == 0 || !_config.TapPreview)
+                {
+                    _visibleText = null; // the next tapping reads the window afresh
+                    if (_tapPreview.Visible)
+                    {
+                        _tapPreview.Hide();
+                    }
+
+                    return;
+                }
+
+                RefreshVisibleText();
+                int limit = _controller.TapWordLimit;
+                Point anchor = _indicator.Visible ? new Point(_indicator.Left, _indicator.Top) : _indicator.PillLocation;
+                _tapPreview.ShowPreview(_capture.PreviewLast(limit, _visibleText), taps, limit, anchor, _controller.SendOnRelease);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Tap preview failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Reads the text visible in the Live Captions window on a background thread (at most every 250 ms, one read
+        /// at a time) and redraws the preview with it.
+        /// </summary>
+        private void RefreshVisibleText()
+        {
+            long now = Environment.TickCount64;
+            if (_visibleReading || now - _visibleReadAt < 250)
+            {
+                return;
+            }
+
+            _visibleReading = true;
+            _visibleReadAt = now;
+            Task.Run(() => _reader.ReadVisible()).ContinueWith(t =>
+            {
+                string? text = t.Status == TaskStatus.RanToCompletion ? t.Result : null;
+                try
+                {
+                    _indicator.BeginInvoke(new Action(() =>
+                    {
+                        _visibleReading = false;
+                        if (_controller.Taps > 0)
+                        {
+                            _visibleText = text;
+                            UpdateTapPreview();
+                        }
+                    }));
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
+                    // Closing.
+                }
+            }, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Turns the tap preview on or off, from any of its switches (tray menu, taskbar window, extension popup), and
+        /// keeps them all in step. Call on the UI thread.
+        /// </summary>
+        public void SetTapPreview(bool on)
+        {
+            if (_exiting)
+            {
+                return;
+            }
+
+            bool changed = _config.TapPreview != on;
+            _config.TapPreview = on;
+            _tapPreviewItem.Checked = on;
+            _main.SetTapPreview(on);
+            _relay.NotifySettings(on);
+            UpdateTapPreview();
+            if (!changed)
+            {
+                return;
+            }
+
+            SaveConfig();
+            Log.Info($"Tap preview: {on}.");
+            _indicator.Flash(FeedbackKind.Info, on ? "Tap preview on" : "Tap preview off");
         }
 
         private void OnIndicatorMoved(Point p)
@@ -244,14 +449,6 @@ namespace CaptionRelay.UI
         }
 
         private void UpdateShowItem() => _showItem.Text = _indicator.Visible ? "Hide indicator" : "Show indicator";
-
-        private void ToggleSound()
-        {
-            _config.Sound = !_config.Sound;
-            _sounds.Enabled = _config.Sound;
-            _soundItem.Checked = _config.Sound;
-            SaveConfig();
-        }
 
         private void ToggleHideLiveCaptions()
         {

@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Text;
 using System.Threading;
 using CaptionRelay.Sending;
 using CaptionRelay.UI;
@@ -29,35 +28,46 @@ namespace CaptionRelay.Tests
         [Fact]
         public void Words_SingularAndPlural()
         {
-            Assert.Equal("1 word pending", IndicatorText.Words(1));
-            Assert.Equal("142 words pending", IndicatorText.Words(142));
+            Assert.Equal("1 word", IndicatorText.Words(1));
+            Assert.Equal("142 words", IndicatorText.Words(142));
         }
 
         [Fact]
-        public void StatusLine_ShowsFlashInsteadOfWords()
+        public void StatusLine_NoWordCount_FlashWhenThere()
         {
-            Assert.Equal("Captions on | Gemini connected | 3 words pending", IndicatorText.StatusLine(true, true, "Gemini", 3, null));
-            Assert.Equal("Captions off | Gemini not connected | Sent ✓", IndicatorText.StatusLine(false, false, "Gemini", 3, "Sent ✓"));
+            Assert.Equal("Captions on | Gemini connected", IndicatorText.StatusLine(true, true, "Gemini", null));
+            Assert.Equal("Captions off | Gemini not connected | Sent ✓", IndicatorText.StatusLine(false, false, "Gemini", "Sent ✓"));
         }
 
         [Fact]
         public void StatusLine_ShowsQueuedUntilDelivered()
         {
-            Assert.Equal("Captions on | Gemini connected | queued · 2 words pending", IndicatorText.StatusLine(true, true, "Gemini", 2, null, 1));
+            Assert.Equal("Captions on | Gemini connected | queued", IndicatorText.StatusLine(true, true, "Gemini", null, 1));
+        }
+
+        [Fact]
+        public void ChatWindow_Pick_ClosestToTheExtensionsBounds_ElseTopmost()
+        {
+            var rects = new[] { new Rectangle(1280, 0, 1280, 1400), new Rectangle(-8, -8, 1296, 1416), new Rectangle(100, 100, 800, 600) };
+            Assert.Equal(1, ChatWindow.Pick(rects, new Rectangle(0, 0, 1280, 1400))); // invisible borders tolerated
+            Assert.Equal(2, ChatWindow.Pick(rects, new Rectangle(100, 100, 800, 600)));
+            Assert.Equal(0, ChatWindow.Pick(rects, new Rectangle(5000, 5000, 300, 300))); // nothing close: topmost
+            Assert.Equal(0, ChatWindow.Pick(rects, null));
+            Assert.Equal(-1, ChatWindow.Pick(Array.Empty<Rectangle>(), null));
         }
 
         [Fact]
         public void Tooltip_NeverOver127Chars()
         {
-            string t = IndicatorText.Tooltip(true, false, "Gemini", 12345, new string('x', 200));
+            string t = IndicatorText.Tooltip(true, false, "Gemini", new string('x', 200));
             Assert.True(t.Length <= 127);
         }
 
         [Fact]
-        public void Place_DefaultBottomRight()
+        public void Place_DefaultBottom_300pxFromTheLeft()
         {
             Point p = IndicatorText.Place(null, new Size(300, 26), new[] { Primary }, Primary, 16);
-            Assert.Equal(new Point(1920 - 300 - 16, 1040 - 26 - 16), p);
+            Assert.Equal(new Point(300, 1040 - 26 - 16), p);
         }
 
         [Fact]
@@ -70,7 +80,7 @@ namespace CaptionRelay.Tests
         public void Place_SavedPositionOnRemovedMonitor_FallsBackToDefault()
         {
             Point p = IndicatorText.Place(new Point(2500, 200), new Size(300, 26), new[] { Primary }, Primary, 16);
-            Assert.Equal(new Point(1604, 998), p);
+            Assert.Equal(new Point(300, 998), p);
         }
 
         [Fact]
@@ -81,23 +91,13 @@ namespace CaptionRelay.Tests
         }
 
         [Fact]
-        public void Wave_IsValidPcm()
-        {
-            byte[] wav = Sounds.Wave((880, 70), (1320, 90));
-            Assert.Equal("RIFF", Encoding.ASCII.GetString(wav, 0, 4));
-            Assert.Equal("WAVE", Encoding.ASCII.GetString(wav, 8, 4));
-            int samples = 22050 * 70 / 1000 + 22050 * 90 / 1000;
-            Assert.Equal(44 + samples * 2, wav.Length);
-        }
-
-        [Fact]
         public void Form_ExpandsUpward_FlashShowsInTitle()
         {
             RunSta(() =>
             {
                 using var form = new IndicatorForm(new Point(400, 600));
                 form.SetStatus(true, false, "Gemini", 5, "five words of pending text");
-                Assert.Equal("Captions on | Gemini not connected | 5 words pending", form.Text);
+                Assert.Equal("Captions on | Gemini not connected", form.Text);
 
                 Rectangle collapsed = form.Bounds;
                 form.ToggleExpanded();

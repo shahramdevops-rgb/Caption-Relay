@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CaptionRelay</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="22" height="22">
+    <h1>CaptionRelay</h1>
+    <label class="switch" title="On starts the CaptionRelay app and Live Captions; off closes both">
+      <input id="enabled" type="checkbox" role="switch" aria-label="CaptionRelay app on/off">
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </header>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Checking…</span></div>
+
+  <section>
+    <label class="field">Deliver to
+      <select id="provider"></select>
+    </label>
+    <label class="check">
+      <input id="autoSubmit" type="checkbox">
+      <span>Press Enter for me <small>Off: only pasted into the input, you send it</small></span>
+    </label>
+    <label class="check" id="focusRow">
+      <input id="focusAfterPaste" type="checkbox">
+      <span>Jump to the chat after pasting <small>The chat's input gets the focus, so Enter sends it</small></span>
+    </label>
+  </section>
+
+  <section id="keys">
+    <h2>Shortcuts</h2>
+    <div class="key-row">
+      <span class="combo" id="sendKey"></span>
+      <span class="what" id="sendWhat"></span>
+    </div>
+    <div class="key-row" id="tapRow">
+      <span class="combo" id="tapKey"></span>
+      <span class="what" id="tapWhat"></span>
+    </div>
+    <div class="key-row">
+      <span class="combo" id="skipKey"></span>
+      <span class="what"><b>Skip</b>: start fresh; what was said so far is no longer pasted</span>
+    </div>
+    <p class="note" id="keysNote">Press and release in any window; your focus stays where it is.</p>
+    <label class="check" id="tapPreviewRow">
+      <input id="tapPreview" type="checkbox">
+      <span>Show tap preview <small>See-through box above the indicator showing what a tap will paste</small></span>
+    </label>
+  </section>
+
+  <footer>
+    <button type="button" id="settings">All settings</button>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

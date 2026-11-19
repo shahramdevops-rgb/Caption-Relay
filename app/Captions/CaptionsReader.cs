@@ -45,6 +45,37 @@ namespace CaptionRelay.Captions
         }
 
         /// <summary>
+        /// Closes every Live Captions process: asks its window to close, and ends the process if it is still running
+        /// after <paramref name="wait"/>. Returns how many processes were closed.
+        /// </summary>
+        public static int CloseAll(TimeSpan wait)
+        {
+            int closed = 0;
+            foreach (Process process in Process.GetProcessesByName(ProcessName))
+            {
+                using (process)
+                {
+                    try
+                    {
+                        if (!process.CloseMainWindow() || !process.WaitForExit((int)wait.TotalMilliseconds))
+                        {
+                            process.Kill();
+                            process.WaitForExit(2000);
+                        }
+
+                        closed++;
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception || ex is NotSupportedException)
+                    {
+                        // Already gone, or not ours to end.
+                    }
+                }
+            }
+
+            return closed;
+        }
+
+        /// <summary>
         /// Normalized caption text ("" when only the placeholder is shown), or null when the captions window
         /// isn't available.
         /// </summary>
@@ -72,6 +103,44 @@ namespace CaptionRelay.Captions
                 }
 
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// The caption text visible in the Live Captions window right now: its visible lines (UI Automation
+        /// TextPattern.GetVisibleRanges), normalized. Depends on the window's size and scroll position. Null when Live
+        /// Captions or its text is not available. Takes a few milliseconds (cross-process): not for every poll.
+        /// </summary>
+        public string? ReadVisible()
+        {
+            lock (_lock)
+            {
+                if (_element == null && !TryFind())
+                {
+                    return null;
+                }
+
+                try
+                {
+                    if (!_element!.TryGetCurrentPattern(TextPattern.Pattern, out object pattern))
+                    {
+                        return null;
+                    }
+
+                    var sb = new StringBuilder();
+                    foreach (System.Windows.Automation.Text.TextPatternRange range in ((TextPattern)pattern).GetVisibleRanges())
+                    {
+                        sb.Append(range.GetText(-1)).Append(' ');
+                    }
+
+                    return Normalize(sb.ToString());
+                }
+                catch (Exception ex) when (ex is ElementNotAvailableException || ex is COMException || ex is InvalidOperationException)
+                {
+                    _element = null;
+                    _windowSeen = false;
+                    return null;
+                }
             }
         }
 

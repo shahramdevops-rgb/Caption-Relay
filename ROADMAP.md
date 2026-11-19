@@ -134,5 +134,86 @@ where the text goes. Adding ChatGPT, Claude or an API later must not change the 
       Same pattern as ChatGPT (config + selectors; claude.ai has stable data-testid attributes). Real test 2026-11-13
       (Haiku, English UI): options Test, send, draft kept, busy → queue → merge, minimized window (send + queue),
       fresh page load.
+- [x] **Phase 16 — One exe + guided extension setup**: `build-exe.ps1` → `build\CaptionRelay.exe` (replaced on every build), self-contained
+      single file (73.7 MB, .NET runtime + extension embedded, no other files). Data moved to
+      `%LOCALAPPDATA%\CaptionRelay` (portable mode kept when config.json sits next to the exe). On every start the exe
+      unpacks the extension and registers the native messaging host `com.captionrelay.host` (HKCU, Chrome + Edge); the
+      extension asks it for port + token when it has none or the app refuses its token, so no token copying. First run
+      opens a setup window (open extensions page, path on the clipboard, turns green on connect). Chrome only allows
+      store extensions to be installed by programs, so "Load unpacked" stays one manual step.
+      Measured 2026-11-18: exe starts, extracts 23 files, registers both hosts, shows the setup window; called like
+      Chrome (origin argument + framed stdin), the exe answered with port + token in 162 ms. Not yet done: loading the
+      unpacked extension in real Chrome and the first automatic connection.
+- [x] **Phase 17 — Extension popup**: the toolbar icon opens a popup (no new tab) with an on/off switch (off =
+      disconnected, badge grey OFF, alarms do not reconnect), live status, the chat to deliver to, and the app's
+      hotkeys with what they do. The keys come from new optional `welcome` fields `sendKey` / `skipKey` (last known
+      keys cached for when the app is not running). "All settings" opens the options page. Checked in Chrome with a
+      stubbed chrome.* API: connected, turned off and not-connected states, light/dark colours.
+- [x] **Phase 18 — App on/off from the popup, taskbar window, no sounds**: the popup switch now controls the app:
+      off sends the new `quit` message (app exits and closes Live Captions), on asks the native host to `launch` the
+      app (started outside Chrome's job object, Explorer as fallback; "already running" if it is). The switch shows ON
+      exactly while the app is connected. New taskbar window (starts minimized without activating; status + hotkeys;
+      closing it exits everything). Live Captions is closed on every exit (`closeLiveCaptionsOnExit`, default true).
+      Sounds removed. Measured 2026-11-18 with build\CaptionRelay.exe: taskbar window minimized, not a tool window,
+      CaptionRelay never became the foreground window; closing it → app and Live Captions gone, log "Exiting
+      normally"; native-host launch → app running after the host exited ("--from-extension"), second launch →
+      "already running"; quit from RelayTestClient --quit → app and Live Captions gone 80 ms later.
+      Not tested here: the popup in real Chrome (launch from inside Chrome's job object).
+      Known: starting Live Captions brings its window to the front (as before this phase).
+- [x] **Phase 19 — Paste only (default)**: the send key now only pastes the new speech into the chat's input (after
+      whatever is already there, joined with one space, never a new line) and does not submit it; the user reviews it and presses Enter. Popup checkbox
+      **Press Enter for me** (`autoSubmit` in extension storage, default off) brings back paste + submit with the
+      busy queue (queued texts are also joined with a space). Paste only never queues: inserting works while the chat is answering. New optional
+      `submitted: false` on `ack` / `result`; the app shows `Pasted ✓` and writes `[SENT … (pasted, not submitted)]`
+      in the session file. Checked: fake-page tests (paste after draft, paste while answering, two pastes in a row,
+      nothing clicked), Node and .NET tests. Not tested here: real Gemini / ChatGPT / Claude pages.
+- [x] **Phase 20 — Tap for the latest words, F keys, preview, indicator**: new tap key (F7): each tap selects 15
+      more of the latest words (`tapWords`), pasted 0.4 s after the last tap (`tapPasteDelayMs`). Keys moved to single
+      F keys: F8 paste everything since the last skip (was Ctrl+Shift), F7 tap, F9 skip; single-key hotkeys are now
+      swallowed by the hook (down, repeats and up), so e.g. F7 no longer opens Chrome's caret-browsing prompt.
+      Pasting no longer uses text up: after a paste-only ack sentIndex goes back (`ConfirmPasted`), so pressing again
+      pastes the same words again; only F9 moves the start (submitted sends, "Press Enter for me", are still used
+      up). To avoid doubles the extension merges the text with what the input box holds: the box's last ≤ 40 words (at
+      least 3, case/punctuation ignored) are found in the text and the match extended backwards; newer words are
+      appended, older words (more taps) go in front of the matched part; all of it there → ack `alreadyInInput`,
+      indicator "Already in the input". (First version only appended newer words, so 1 tap then more taps said
+      "already in the input" and never added the older words; fixed the same day.) Click-through, never-focused, 60 % opaque tap preview above the indicator (selection highlighted,
+      older words dimmed; menu **Show tap preview**). Indicator: no word count any more (`● Captions ● Gemini` +
+      flashes), as wide as its text, default 300 px from the left edge at the bottom. Welcome carries `tapKey` /
+      `tapWords` for the popup.
+      Measured 2026-11-19 with build\CaptionRelay.exe + TTS: F8 twice → the same 134 chars both times (nothing used
+      up); 2 taps → last 30 words; F7/F8 never reached the foreground test window (F6 did); focus never moved; preview
+      see-through above the indicator at x = 300. The input-box overlap rule was checked on the fake chat pages (36/36);
+      not yet with the reloaded extension on real Gemini.
+- [x] **Phase 21 — Hold to send, numpad keys, preview switch in the UI**: holding the tap key (≥ 0.4 s,
+      `tapHoldSendMs`) arms "send on release" (indicator "Release: paste + send", preview header says so); on release
+      the selection is sent with `send.submit = true`: the extension merges it with the input and sends it, even in
+      paste-only mode (chat answering → pasted now, sent when the answer ends). Like a paste, it is not used up.
+      Quick taps now paste 0.4 s after the key is released (nothing happens while a key is held). The hook measures
+      the hold (key-down → key-up) and treats a key-down more than 1.5 s after the last event of a swallowed key as a
+      new press (missed key-up). Keys: numpad + = tap, numpad − = paste everything (`NumPlus` / `NumMinus`, i.e.
+      VK_ADD / VK_SUBTRACT, never the main keyboard's VK_OEM_PLUS / VK_OEM_MINUS), F9 = skip; shown as "Num +" /
+      "Num -". **Show tap preview** switch in the extension popup (`setTapPreview` → app, `settings` / welcome
+      `tapPreview` → popup) and a checkbox in the taskbar window, in step with the tray menu item.
+- [x] **Phase 22 — Tap preview mirrors the Live Captions window**: while tapping, the app reads the lines visible in
+      the Live Captions window (UI Automation TextPattern.GetVisibleRanges on CaptionsTextBlock, on a background
+      thread, at most every 250 ms), finds them in the transcript (first ≤ 8 words, latest occurrence; rewritten top
+      words skipped and counted back) and shows exactly that stretch in the preview, the selection highlighted. A
+      selection reaching above the window is shown in full with "(N above the Live Captions window)". Falls back to
+      the old context when the window's text is not found. Checked 2026-11-19: probe saw 4 visible lines / 32 words,
+      later 10 lines / 73 words in a 540×365 window; screenshots of 1 and 3 taps showed the preview with the window's
+      exact text and the last 15 / 41 words highlighted.
+- [x] **Phase 23 — Jump to the chat after pasting**: after a paste (or "already in the input") the extension makes
+      the target tab active, focuses its window (restoring it if minimized) and puts the caret at the end of the
+      input; the ack carries `focus` with the window's bounds. Windows may refuse a background browser the
+      foreground, so 200 ms later the app brings that window forward itself (matched by bounds in DIPs, else the
+      topmost Chrome/Edge window; AttachThreadInput + SetForegroundWindow) unless it is already in front. Popup
+      checkbox "Jump to the chat after pasting" (`focusAfterPaste`, default on; not used with Press Enter for me).
+      Checked 2026-11-19: fake-page test (input focused, caret at the end); with build\CaptionRelay.exe and
+      RelayTestClient --focus, numpad − in a foreground test window → Chrome came to the front ("brought to the
+      front"). Not yet checked with the real extension (needs the extension reloaded).
+      Also after every paste the input is scrolled to its end like Ctrl+End (the box and scrolling elements around it,
+      up to the input container; again 60 ms later because the editors re-render), so the last words are in view.
+      Fake-page test with a 40 px box in a 60 px wrapper: at the end with the fix, "box at 0 of 283" without it.
 - [ ] **Phase 15 — API providers** (OpenAI API and OpenAI-compatible endpoints): key storage, streaming,
       showing the answer (optional `answer` message to the app or an extension side panel).
